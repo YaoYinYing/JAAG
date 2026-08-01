@@ -51,10 +51,67 @@ class AlphaFold3Generator {
         // No embedded container initialization needed
     }
 
+    getOutputTarget() {
+        return document.getElementById('outputTarget')?.value || 'alphafold3';
+    }
+
+    updateOutputTargetUI() {
+        const isOpenDDE = this.getOutputTarget() === 'opendde';
+        const versionSettings = document.getElementById('alphaFoldVersionSettings');
+        const modelSeedSettings = document.getElementById('modelSeedSettings');
+        const userCCDSection = document.getElementById('userCCDSection');
+        const help = document.getElementById('outputTargetHelp');
+        const outputLabel = document.getElementById('jsonOutputLabel');
+
+        versionSettings?.classList.toggle('d-none', isOpenDDE);
+        userCCDSection?.classList.toggle('d-none', isOpenDDE);
+        if (modelSeedSettings) {
+            modelSeedSettings.classList.toggle('col-md-8', !isOpenDDE);
+            modelSeedSettings.classList.toggle('col-md-12', isOpenDDE);
+        }
+        if (help) {
+            help.textContent = isOpenDDE
+                ? 'AlphaFold Server-style JSON. File-path MSAs are supported; inline MSA, AlphaFold template objects, and custom userCCD are not.'
+                : 'AlphaFold 3 dialect, version 1–4';
+        }
+        if (outputLabel) {
+            outputLabel.textContent = isOpenDDE ? 'OpenDDE JSON Output' : 'AlphaFold 3 JSON Output';
+        }
+    }
+
     async generateJSON() {
         try {
             // Call the enhanced JSON generator from json-generator.js (not the old app.js version)
-            const jsonData = await this.buildAlphaFold3JSON();
+            const alphaFoldJob = await this.buildAlphaFold3JSON();
+            const outputTarget = this.getOutputTarget();
+            let jsonData = alphaFoldJob;
+            let validation;
+
+            this.updateOutputTargetUI();
+
+            if (outputTarget === 'opendde') {
+                if (!window.OpenDDEAdapter) {
+                    throw new Error('OpenDDE adapter failed to load');
+                }
+                const conversion = window.OpenDDEAdapter.convert(alphaFoldJob);
+                const contractValidation = window.OpenDDEAdapter.validate(conversion.data);
+                const errors = [...new Set([...conversion.errors, ...contractValidation.errors])];
+                const warnings = [...new Set([...conversion.warnings, ...contractValidation.warnings])];
+                jsonData = conversion.data;
+                validation = { valid: errors.length === 0, errors, warnings };
+                this.updateValidationStatus(
+                    document.getElementById('validationStatus'),
+                    errors,
+                    warnings,
+                    'OpenDDE'
+                );
+            } else {
+                validation = this.validateJSON(alphaFoldJob);
+            }
+
+            this.lastValidation = validation;
+            this.lastOutputTarget = outputTarget;
+            this.lastOutputData = jsonData;
             
             // Custom formatting to keep PTM modifications on single lines
             let jsonString = JSON.stringify(jsonData, null, 2);
@@ -194,6 +251,9 @@ class AlphaFold3Generator {
             }
 
         } catch (error) {
+            this.lastValidation = { valid: false, errors: [error.message], warnings: [] };
+            const outputElement = document.getElementById('jsonOutput');
+            if (outputElement) outputElement.textContent = `Error: ${error.message}`;
             this.showError('JSON Generation Error: ' + error.message);
         }
     }
@@ -372,6 +432,12 @@ function copyJSON() {
 
 function downloadJSON() {
     app.downloadJSON();
+}
+
+function updateOutputTarget() {
+    if (!app) return;
+    app.updateOutputTargetUI();
+    app.generateJSON();
 }
 
 
@@ -707,6 +773,7 @@ window.generateMultipleSeeds = generateMultipleSeeds;
 window.validateSeedCountInput = validateSeedCountInput;
 window.validateMultipleSeedsInput = validateMultipleSeedsInput;
 window.cleanupMultipleSeedsInput = cleanupMultipleSeedsInput;
+window.updateOutputTarget = updateOutputTarget;
 window.testToastStacking = testToastStacking;
 window.testGlycoCTValidation = testGlycoCTValidation;
 window.debugRegexPatterns = debugRegexPatterns;
@@ -717,6 +784,7 @@ document.addEventListener('DOMContentLoaded', () => {
     app = new AlphaFold3Generator();
     // Make app globally accessible
     window.app = app;
+    app.updateOutputTargetUI();
 
     // Generate and set a random seed as default
     const modelSeedsInput = document.getElementById('modelSeedsMultiple');
@@ -752,4 +820,3 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
