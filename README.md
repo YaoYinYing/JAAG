@@ -1,6 +1,6 @@
-# JAAG: a JSON input file Assembler for AlphaFold 3 and OpenDDE with Glycan integration
+# JAAG: a JSON input file Assembler for AlphaFold 3, OpenDDE, and Protenix with Glycan integration
 
-JAAG is a comprehensive web-based tool for generating AlphaFold 3 and OpenDDE input JSON files with advanced glycan structure support and integrated SugarDrawer functionality.
+JAAG is a comprehensive web-based tool for generating AlphaFold 3, OpenDDE, and Protenix input JSON files with advanced glycan structure support and integrated SugarDrawer functionality.
 Web tool link: https://biofgreat.org/JAAG/  
 Full tutorial PDF: https://www.biofgreat.org/JAAG/Tutorial.pdf  
 Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.pptx
@@ -22,6 +22,13 @@ Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.ppt
 - **Target-aware Validation**: Prevents unsupported AlphaFold-only fields from being copied or downloaded as valid OpenDDE JSON
 - **OpenDDE Input Guide**: https://github.com/aurekaresearch/OpenDDE/blob/main/docs/infer_json_format.md
 
+### Protenix JSON Generation
+
+- **Protenix Job-list JSON**: Generates Protenix's required top-level job list and entity names
+- **Shared JAAG Editor**: Reuses the same protein, DNA, RNA, ligand, glycan, multimer, modification, MSA-path, and covalent-bond inputs
+- **Target-aware Validation**: Reports Protenix-specific compatibility errors before copy or download
+- **Protenix Input Guide**: https://github.com/bytedance/Protenix/blob/main/docs/infer_json_format.md
+
 ### Glycan Structure Management
 - **Integrated SugarDrawer**: Built-in glycan drawing interface with popup modal support
 - **GlycoCT Processing**: Full GlycoCT format parsing and conversion to bondedAtomPairs + CCD codes
@@ -34,7 +41,7 @@ Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.ppt
 ### Glycan-related AF3 Model Interpretation: 
 Chin Huang, Natarajan Kannan, Kelley W Moremen, Modeling glycans with AlphaFold 3: capabilities, caveats, and limitations, Glycobiology, Volume 35, Issue 10, October 2025, cwaf048, https://doi.org/10.1093/glycob/cwaf048
 ## Quick Start (through server: https://biofgreat.org/JAAG/)
-1. **Basic Setup**: Enter a job name and choose AlphaFold 3 standalone or OpenDDE
+1. **Basic Setup**: Enter a job name and choose AlphaFold 3 standalone, OpenDDE, or Protenix
 2. **Add Sequences**: Use the sequence buttons to add proteins, ligands, RNA, or DNA
 3. **Draw Glycans**: Click the pencil icon to open SugarDrawer for glycan structure drawing  
    **Alternatives**: Copy and paste GlycoCT from a glycoinformatics database
@@ -100,6 +107,19 @@ Run the downloaded file with a standalone OpenDDE installation:
 opendde pred -i input.json -o ./output
 ```
 
+## Protenix compatibility
+
+Protenix's documented job-list format overlaps with the OpenDDE fields JAAG
+exports. Select **Protenix** to generate target-labelled validation messages and
+a directly usable Protenix input file. The same AlphaFold-only field limitations
+apply to this shared JAAG export path.
+
+Run the downloaded file with a standalone Protenix installation:
+
+```bash
+protenix pred -i input.json -o ./output -n protenix_base_default_v1.0.0
+```
+
 ## Guide
 
 ### Basic Protein Job Example
@@ -142,7 +162,7 @@ opendde pred -i input.json -o ./output
 
 ## Other Notes
 
-- **Validation Required**: Resolve JAAG validation errors before submitting JSON to AlphaFold 3 or OpenDDE
+- **Validation Required**: Resolve JAAG validation errors before submitting JSON to AlphaFold 3, OpenDDE, or Protenix
 - **Sequence Limits**: Be aware of AlphaFold 3 sequence length limitations (around 5000 tokens)
 - **Database Availability**: External database lookups depend on server availability
 - **Privacy**: No data is sent to servers controlled by this project. When using glycan lookup features, the app makes direct client-side requests to third-party APIs (e.g., GlyGen, GlyTouCan). 

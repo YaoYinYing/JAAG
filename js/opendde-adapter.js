@@ -1,4 +1,4 @@
-// Convert JAAG's AlphaFold 3 job object to OpenDDE's AlphaFold Server-style JSON.
+// Convert JAAG's AlphaFold 3 job object to OpenDDE/Protenix's AlphaFold Server-style JSON.
 (function(root) {
     'use strict';
 
@@ -50,7 +50,7 @@
         return [...String(userCCD).matchAll(/^data_([^\s#]+)/gm)].map(match => match[1]);
     }
 
-    function convert(alphaFoldJob) {
+    function convert(alphaFoldJob, targetName = 'OpenDDE') {
         const errors = [];
         const warnings = [];
         const chainLookup = new Map();
@@ -62,17 +62,17 @@
         }
 
         if (alphaFoldJob.userCCDPath) {
-            errors.push('OpenDDE does not support AlphaFold userCCDPath inputs');
+            errors.push(`${targetName} does not support AlphaFold userCCDPath inputs`);
         }
 
         const userCCDIds = findUserCCDIds(alphaFoldJob.userCCD);
         const unsupportedUserCCDs = userCCDIds.filter(id => !ALPHAFOLD_CCD_ALIASES[id]);
         if (alphaFoldJob.userCCD && userCCDIds.length === 0) {
-            errors.push('OpenDDE does not support custom inline userCCD data');
+            errors.push(`${targetName} does not support custom inline userCCD data`);
         } else if (unsupportedUserCCDs.length > 0) {
-            errors.push(`OpenDDE does not support custom userCCD components: ${unsupportedUserCCDs.join(', ')}`);
+            errors.push(`${targetName} does not support custom userCCD components: ${unsupportedUserCCDs.join(', ')}`);
         } else if (userCCDIds.length > 0) {
-            warnings.push('AlphaFold-specific CCD aliases were mapped to their standard CCD IDs for OpenDDE');
+            warnings.push(`AlphaFold-specific CCD aliases were mapped to their standard CCD IDs for ${targetName}`);
         }
 
         const sourceSequences = Array.isArray(alphaFoldJob.sequences) ? alphaFoldJob.sequences : [];
@@ -116,7 +116,7 @@
                     });
                     const invalidCodes = codes.filter(code => !/^[A-Z0-9]+$/.test(code));
                     if (invalidCodes.length > 0) {
-                        errors.push(`OpenDDE cannot resolve custom CCD codes: ${invalidCodes.join(', ')}`);
+                        errors.push(`${targetName} cannot resolve custom CCD codes: ${invalidCodes.join(', ')}`);
                     }
                     target.ligand = `CCD_${codes.join('_')}`;
                 } else if (hasSmiles) {
@@ -135,10 +135,10 @@
                     target.pairedMsaPath = source.pairedMsaPath;
                 }
                 if (source.unpairedMsa || source.pairedMsa) {
-                    errors.push(`OpenDDE requires MSA file paths for ${ids.join(', ') || `sequence ${sequenceIndex + 1}`}; inline MSA data is unsupported`);
+                    errors.push(`${targetName} requires MSA file paths for ${ids.join(', ') || `sequence ${sequenceIndex + 1}`}; inline MSA data is unsupported`);
                 }
                 if (sourceType === 'protein' && Array.isArray(source.templates) && source.templates.length > 0) {
-                    errors.push(`OpenDDE expects templatesPath (A3M/HHR), not AlphaFold template objects, for ${ids.join(', ') || `sequence ${sequenceIndex + 1}`}`);
+                    errors.push(`${targetName} expects templatesPath (A3M/HHR), not AlphaFold template objects, for ${ids.join(', ') || `sequence ${sequenceIndex + 1}`}`);
                 }
             }
 
@@ -146,7 +146,7 @@
         });
 
         if (omittedDescriptions) {
-            warnings.push('Sequence descriptions are not part of the OpenDDE input contract and were omitted');
+            warnings.push(`Sequence descriptions are not part of the ${targetName} input contract and were omitted`);
         }
 
         const job = {
@@ -203,12 +203,12 @@
         return { data: [job], errors, warnings };
     }
 
-    function validate(data) {
+    function validate(data, targetName = 'OpenDDE') {
         const errors = [];
         const warnings = [];
 
         if (!Array.isArray(data) || data.length === 0) {
-            return { valid: false, errors: ['OpenDDE JSON must be a non-empty top-level list'], warnings };
+            return { valid: false, errors: [`${targetName} JSON must be a non-empty top-level list`], warnings };
         }
 
         data.forEach((job, jobIndex) => {
@@ -229,7 +229,7 @@
             (job.sequences || []).forEach((entry, sequenceIndex) => {
                 const keys = Object.keys(entry || {});
                 if (keys.length !== 1 || !Object.values(ENTITY_TYPES).includes(keys[0])) {
-                    errors.push(`Job ${jobIndex + 1} sequence ${sequenceIndex + 1} must contain one OpenDDE entity type`);
+                    errors.push(`Job ${jobIndex + 1} sequence ${sequenceIndex + 1} must contain one ${targetName} entity type`);
                     return;
                 }
                 const entity = entry[keys[0]];
@@ -254,4 +254,5 @@
     const api = { convert, validate };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     root.OpenDDEAdapter = api;
+    root.ProtenixAdapter = api;
 })(typeof window !== 'undefined' ? window : globalThis);
