@@ -163,6 +163,10 @@ export function fromAlphaFold3(alphaFoldJob, options = {}) {
 
 function validateMsa(entity, errors, ref) {
     if (!entity.msa) return;
+    if (typeof entity.msa !== 'object' || Array.isArray(entity.msa)) {
+        errors.push(`${ref} MSA must be an object`);
+        return;
+    }
     for (const kind of ['paired', 'unpaired']) {
         const msa = entity.msa[kind];
         if (!msa) continue;
@@ -173,6 +177,44 @@ function validateMsa(entity, errors, ref) {
             errors.push(`${ref} paired MSA is supported only for proteins`);
         }
     }
+    if (entity.msa.paired && entity.msa.unpaired
+        && entity.msa.paired.source !== entity.msa.unpaired.source) {
+        errors.push(`${ref} paired and unpaired MSA must use the same source type`);
+    }
+}
+
+function validateTemplates(entity, errors, warnings, ref) {
+    if (entity.templates === undefined) return;
+    if (!Array.isArray(entity.templates)) {
+        errors.push(`${ref} templates must be an array`);
+        return;
+    }
+    if (entity.type !== 'protein' && entity.templates.length > 0) {
+        errors.push(`${ref} templates are supported only for proteins`);
+        return;
+    }
+    entity.templates.forEach((template, index) => {
+        const templateRef = `${ref} template ${index + 1}`;
+        if (!template || typeof template !== 'object' || Array.isArray(template)) {
+            errors.push(`${templateRef} must be an object`);
+            return;
+        }
+        const hasPath = typeof template.mmcifPath === 'string' && template.mmcifPath.length > 0;
+        const hasInline = typeof template.mmcif === 'string' && template.mmcif.length > 0;
+        if (!hasPath && !hasInline) errors.push(`${templateRef} requires mmcifPath or mmcif`);
+        else if (hasPath && hasInline) errors.push(`${templateRef} cannot contain both mmcifPath and mmcif`);
+        for (const field of ['queryIndices', 'templateIndices']) {
+            const indices = template[field];
+            if (!Array.isArray(indices) || indices.length === 0
+                || indices.some(value => !Number.isInteger(value) || value < 0)) {
+                errors.push(`${templateRef} ${field} must be a non-empty array of non-negative integers`);
+            }
+        }
+        if (Array.isArray(template.queryIndices) && Array.isArray(template.templateIndices)
+            && template.queryIndices.length !== template.templateIndices.length) {
+            warnings.push(`${templateRef} queryIndices and templateIndices have different lengths`);
+        }
+    });
 }
 
 function validateEndpoint(endpoint, errors, ref, chainIds) {
@@ -257,11 +299,7 @@ export function validateSuperset(document) {
                 errors.push(`${ref} modification ${modIndex + 1} requires a CCD code and positive position`);
             }
         });
-        if (entity.templates !== undefined && !Array.isArray(entity.templates)) {
-            errors.push(`${ref} templates must be an array`);
-        } else if (entity.templates?.some(template => !template || typeof template !== 'object' || Array.isArray(template))) {
-            errors.push(`${ref} templates must contain objects`);
-        }
+        validateTemplates(entity, errors, warnings, ref);
         validateMsa(entity, errors, ref);
     });
 

@@ -65,7 +65,25 @@ test('/fetch returns 422 instead of throwing for malformed collection shapes', a
     const nestedPayload = encodeSharePayload(invalidNested, deflateSync);
     const nestedResponse = await handleFetch(new Request(`https://jaag.test/fetch?p=${nestedPayload}`), inflate);
     assert.equal(nestedResponse.status, 422);
-    assert.match((await nestedResponse.json()).error, /modification 1 requires.*templates must contain objects/);
+    assert.match((await nestedResponse.json()).error, /modification 1 requires.*template 1 must be an object/);
+});
+
+test('/fetch rejects invalid templates and mixed MSA source modes', async () => {
+    const invalidDocument = documentFixture('alphafold3');
+    invalidDocument.job.entities[0].templates = [{}];
+    invalidDocument.job.entities[0].msa = {
+        unpaired: { source: 'path', value: '/data/unpaired.a3m' },
+        paired: { source: 'inline', value: '>query\nACDE' }
+    };
+    const payload = encodeSharePayload(invalidDocument, deflateSync);
+
+    const response = await handleFetch(new Request(`https://jaag.test/fetch?p=${payload}`), inflate);
+
+    assert.equal(response.status, 422);
+    assert.equal(response.headers.get('content-disposition'), null);
+    const error = (await response.json()).error;
+    assert.match(error, /template 1 requires mmcifPath or mmcif/);
+    assert.match(error, /paired and unpaired MSA must use the same source type/);
 });
 
 test('/fetch rejects missing and oversized payloads', async () => {

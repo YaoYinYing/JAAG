@@ -99,7 +99,9 @@ test('rejects invalid superset invariants before dispatch', () => {
 test('keeps inline MSA target compatibility in adapter validation', () => {
     const source = alphaFoldFixture();
     delete source.sequences[0].protein.unpairedMsaPath;
+    delete source.sequences[0].protein.pairedMsaPath;
     source.sequences[0].protein.unpairedMsa = '>query\nACDE';
+    source.sequences[0].protein.pairedMsa = '>query\nACDE';
     const document = fromAlphaFold3(source);
 
     assert.deepEqual(serialize(document, 'alphafold3').errors, []);
@@ -155,4 +157,21 @@ test('normalizes built-in glycan CCD aliases and rejects custom components', () 
 
     builtIn.userCCD = 'data_CUSTOM-1\n#\n_chem_comp.id CUSTOM\n';
     assert.match(serialize(fromAlphaFold3(builtIn), 'protenix').errors.join('\n'), /custom userCCD components: CUSTOM-1/);
+});
+
+test('validates template contents and rejects mixed MSA source modes', () => {
+    const document = fromAlphaFold3(alphaFoldFixture());
+    document.job.entities[0].templates = [{}];
+    document.job.entities[0].msa = {
+        unpaired: { source: 'path', value: '/data/unpaired.a3m' },
+        paired: { source: 'inline', value: '>query\nACDE' }
+    };
+
+    const result = serialize(document, 'alphafold3');
+
+    assert.equal(result.data, null);
+    assert.match(result.errors.join('\n'), /template 1 requires mmcifPath or mmcif/);
+    assert.match(result.errors.join('\n'), /queryIndices must be a non-empty array/);
+    assert.match(result.errors.join('\n'), /templateIndices must be a non-empty array/);
+    assert.match(result.errors.join('\n'), /paired and unpaired MSA must use the same source type/);
 });
