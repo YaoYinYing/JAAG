@@ -91,6 +91,11 @@
             }
             const updateMultimer = entity.type === 'ligand' ? window.updateLigandMultimer : window.updateMultimerChains;
             if (typeof updateMultimer === 'function') updateMultimer(sequenceId);
+            if (entity.chainIds.length > 1) {
+                sequence.multimerChainIds = [...entity.chainIds];
+                const chainList = document.getElementById(`${sequenceId}_chainList`);
+                if (chainList) chainList.textContent = entity.chainIds.join(', ');
+            }
             await window.updateSequenceData?.(sequenceId, entity.type);
         }
 
@@ -103,6 +108,7 @@
             setValue(`${bondId}_chain2`, bond.right.chainId);
             setValue(`${bondId}_res2`, bond.right.position);
             setValue(`${bondId}_atom2`, bond.right.atom);
+            window.updateBondedAtomPair?.(bondId);
         }
         const custom = inputDocument.job.customComponents;
         if (custom?.inline) window.app.userCCDs.shared = { userCCD: custom.inline };
