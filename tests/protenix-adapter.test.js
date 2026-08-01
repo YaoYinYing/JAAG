@@ -42,3 +42,14 @@ test('uses Protenix in target-specific compatibility errors', () => {
     assert.match(result.errors.join('\n'), /Protenix requires MSA file paths/);
     assert.match(adapter.validate([], 'Protenix').errors[0], /Protenix JSON/);
 });
+
+test('exports JAAG built-in sulfated glycans for Protenix', () => {
+    const result = adapter.convert({
+        name: 'sulfated_glycan',
+        sequences: [{ ligand: { id: 'G', ccdCodes: ['NAG', 'SO4-2'] } }],
+        userCCD: 'data_SO4-2\n#\n_chem_comp.id SO4\n'
+    }, 'Protenix');
+
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.data[0].sequences[0].ligand.ligand, 'CCD_NAG_SO4');
+});

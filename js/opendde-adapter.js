@@ -13,7 +13,10 @@
         'SIA-2': 'SIA',
         'SLB-2': 'SLB',
         'NGC-2': 'NGC',
-        'NGE-2': 'NGE'
+        'NGE-2': 'NGE',
+        'SO4-2': 'SO4',
+        'PO4-2': 'PO4',
+        'NH4': 'NH4'
     };
 
     function withCCDPrefix(value) {
@@ -72,7 +75,7 @@
         } else if (unsupportedUserCCDs.length > 0) {
             errors.push(`${targetName} does not support custom userCCD components: ${unsupportedUserCCDs.join(', ')}`);
         } else if (userCCDIds.length > 0) {
-            warnings.push(`AlphaFold-specific CCD aliases were mapped to their standard CCD IDs for ${targetName}`);
+            warnings.push(`JAAG built-in CCD components were mapped to their standard CCD IDs for ${targetName}`);
         }
 
         const sourceSequences = Array.isArray(alphaFoldJob.sequences) ? alphaFoldJob.sequences : [];

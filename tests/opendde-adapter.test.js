@@ -116,6 +116,25 @@ test('normalizes JAAG AlphaFold-only CCD aliases', () => {
     assert.match(result.warnings[0], /standard CCD IDs/);
 });
 
+test('normalizes built-in sulfate, phosphate, and N-sulfate components', () => {
+    const job = baseJob([
+        { ligand: { id: 'S', ccdCodes: ['SO4-2', 'PO4-2'] } },
+        { ligand: { id: 'NS', ccdCodes: ['NH4', 'SO4-2'] } }
+    ]);
+    job.userCCD = [
+        'data_SO4-2\n#\n_chem_comp.id SO4\n',
+        'data_PO4-2\n#\n_chem_comp.id PO4\n',
+        'data_NH4\n#\n_chem_comp.id NH4\n'
+    ].join('\n');
+
+    const result = adapter.convert(job);
+
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.data[0].sequences[0].ligand.ligand, 'CCD_SO4_PO4');
+    assert.equal(result.data[0].sequences[1].ligand.ligand, 'CCD_NH4_SO4');
+    assert.match(result.warnings[0], /standard CCD IDs/);
+});
+
 test('rejects unsupported AlphaFold-only inputs and invalid chain references', () => {
     const job = baseJob([
         {
