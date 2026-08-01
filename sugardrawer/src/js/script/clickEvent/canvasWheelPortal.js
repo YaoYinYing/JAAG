@@ -2,14 +2,12 @@
 "use strict";
 
 import {liaise} from "../index";
-import isEmpty from "lodash.isempty";
-import toNumber from "lodash.tonumber";
 import {startUpdate} from "../images/update/updateCanvas";
 import visFunction from "sugar-sketcher/src/js/guifunction/visFunction";
 import Glycan from "sugar-sketcher/src/js/models/glycomics/Glycan";
 
 export const wheelPortal = (e): void => {
-    if (isEmpty(liaise.stage.children)) return;
+    if (liaise.stage.children.length === 0) return;
     if (e.deltaY > 0) {
         zoomOut();
     }
@@ -28,7 +26,7 @@ const zoomOut = (): void => {
 };
 
 const changeScale = (_scale) => {
-    const scale: number = toNumber(_scale);
+    const scale: number = Number(_scale);
     let coreGraph: Glycan = liaise.coreGraph;
     let shapes: Object = liaise.getNewShapes(coreGraph);
     let treeData: Object = liaise.getNewTreeData(coreGraph);

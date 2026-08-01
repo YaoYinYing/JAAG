@@ -9,8 +9,6 @@ import {modeType} from "../../react/modeType";
 import {searchHorizontalNodeIndex} from "../../react/horizonalUI/horizontalSugarList";
 import MonosaccharideContent from "../../react/expertUI/MonosaccharideContent";
 import ModeCancelButton from "../../react/horizonalUI/ModeCancelButton";
-import isEmpty from "lodash.isempty";
-import filter from "lodash.filter";
 import {clickContent} from "./contentClickCursor";
 import {getMonosaccharideTextNotation} from "../data/SymbolNotation";
 
@@ -53,7 +51,7 @@ export const currentSelectNode = (_target: createjs.shape) => {
 export const addLastWord = (_target: createjs.shape): void => {
     let listID: string = document.querySelector("#nodelist").children[0].id;
     if (searchHorizontalNodeIndex(listID).indexOf(_target.graphics.name) === -1 &&
-        isEmpty(filter(liaise.usedItems, {content: _target.graphics.name}))) {
+        !liaise.usedItems.some(item => item.content === _target.graphics.name)) {
         liaise.usedItems = {
             type: "monosaccharide",
             content: _target.graphics.name

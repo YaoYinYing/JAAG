@@ -12,9 +12,6 @@ import Anomericity from "sugar-sketcher/src/js/models/glycomics/dictionary/Anome
 import AcceptorPosition from "sugar-sketcher/src/js/models/glycomics/dictionary/AcceptorPosition";
 import DonorPosition from "sugar-sketcher/src/js/models/glycomics/dictionary/DonorPosition";
 import SubstituentType from "sugar-sketcher/src/js/models/glycomics/dictionary/SubstituentType";
-import toNumber from "lodash.tonumber";
-import isEmpty from "lodash.isempty";
-import filter from "lodash.filter";
 import ModeCancelButton from "../../react/horizonalUI/ModeCancelButton";
 import {clickContentModification} from "./contentClickCursor";
 
@@ -75,7 +72,7 @@ export const currentSelectNode = (_target: createjs.text) => {
 };
 
 export const addLastWord = (_target: createjs.text): void => {
-    if (isEmpty(filter(liaise.usedItems, {content: _target.text}))) {
+    if (!liaise.usedItems.some(item => item.content === _target.text)) {
         liaise.usedItems = {
             type: _target.id,
             content: _target.text,
@@ -109,14 +106,14 @@ const parseAnomericity = (_anomericity: string): Anomericity => {
 
 const parseDonorPosition = (_donorPosition: string): AcceptorPosition => {
     if (_donorPosition !== "?") {
-        return DonorPosition.prototype.getDonorPosition(toNumber(_donorPosition));
+        return DonorPosition.prototype.getDonorPosition(Number(_donorPosition));
     }
     return DonorPosition.UNDEFINED;
 };
 
 const parseAcceptorPosition = (_acceptorPosition: string): DonorPosition => {
     if (_acceptorPosition !== "?") {
-        return AcceptorPosition.prototype.getAcceptorPosition(toNumber(_acceptorPosition));
+        return AcceptorPosition.prototype.getAcceptorPosition(Number(_acceptorPosition));
     }
     return AcceptorPosition.UNDEFINED;
 };

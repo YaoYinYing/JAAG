@@ -3,7 +3,6 @@
 
 import React from "react";
 import { liaise } from "../../script";
-import toNumber from "lodash.tonumber";
 import {Icon, Popup} from "semantic-ui-react";
 import visFunction from "sugar-sketcher/src/js/guifunction/visFunction";
 import Glycan from "sugar-sketcher/src/js/models/glycomics/Glycan";
@@ -25,7 +24,7 @@ export default class ScaleSlider extends React.Component {
 
         // reference : https://qiita.com/KitaitiMakoto/items/2ac522b92a063055bcbb
 
-        const scale: number = toNumber(value);
+        const scale: number = Number(value);
         let coreGraph: Glycan = liaise.coreGraph;
         let shapes: Object = liaise.getNewShapes(coreGraph);
         let treeData: Object = liaise.getNewTreeData(coreGraph);

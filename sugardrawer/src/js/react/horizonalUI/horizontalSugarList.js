@@ -9,8 +9,6 @@ import {Popup} from "semantic-ui-react";
 import {liaise} from "../../script/index";
 import {modeType} from "../modeType";
 import SubstituentType from "sugar-sketcher/src/js/models/glycomics/dictionary/SubstituentType";
-import isEmpty from "lodash.isempty";
-import filter from "lodash.filter";
 import {clickContentModification} from "../../script/clickEvent/contentClickCursor";
 
 const handleSubstituentClick = (substituentValue) => {
@@ -20,7 +18,7 @@ const handleSubstituentClick = (substituentValue) => {
         liaise.modeType = modeType.MODIFICATION;
     }
 
-    if (isEmpty(filter(liaise.usedItems, {content: liaise.newSubstituent.label}))) {
+    if (!liaise.usedItems.some(item => item.content === liaise.newSubstituent.label)) {
         liaise.usedItems = {
             type: "substituent",
             content: liaise.newSubstituent.label,

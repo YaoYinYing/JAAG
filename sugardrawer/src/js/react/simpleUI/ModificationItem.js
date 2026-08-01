@@ -9,8 +9,6 @@ import { modifiData } from "../../script/data/modificationData";
 import SubstituentType from "sugar-sketcher/src/js/models/glycomics/dictionary/SubstituentType";
 import ReactDOM from "react-dom";
 import NonSymbolContent from "../horizonalUI/NonSymbolContent";
-import isEmpty from "lodash.isempty";
-import filter from "lodash.filter";
 
 export class ModificationContents extends React.Component {
     constructor(props) {
@@ -28,7 +26,7 @@ export class ModificationContents extends React.Component {
         liaise.newSubstituent = SubstituentType[data.id.name];
         this.setState({selectedModification: data.id});
 
-        if (isEmpty(filter(liaise.usedItems, {content: data.id.name}))) {
+        if (!liaise.usedItems.some(item => item.content === data.id.name)) {
             liaise.usedItems = {
                 type: "substituent",
                 content: data.id.label
