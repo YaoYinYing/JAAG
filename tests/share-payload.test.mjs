@@ -105,6 +105,28 @@ test('/fetch rejects inherited target names and malformed CCD values', async () 
     assert.match((await ccdResponse.json()).error, /CCD codes must be non-empty strings/);
 });
 
+test('/fetch rejects non-string ligand and modification values', async () => {
+    for (const ligand of [
+        { source: 'smiles', smiles: [] },
+        { source: 'file', path: {} }
+    ]) {
+        const invalidDocument = documentFixture('opendde');
+        invalidDocument.job.entities.push({ key: 'ligand', type: 'ligand', chainIds: ['L'], ligand });
+        const payload = encodeSharePayload(invalidDocument, deflateSync);
+        const response = await handleFetch(new Request(`https://jaag.test/fetch?p=${payload}`), inflate);
+        assert.equal(response.status, 422);
+        assert.equal(response.headers.get('content-disposition'), null);
+    }
+
+    const invalidModification = documentFixture('alphafold3');
+    invalidModification.job.entities[0].modifications = [{ ccdCode: {}, position: 1 }];
+    const payload = encodeSharePayload(invalidModification, deflateSync);
+    const response = await handleFetch(new Request(`https://jaag.test/fetch?p=${payload}`), inflate);
+    assert.equal(response.status, 422);
+    assert.equal(response.headers.get('content-disposition'), null);
+    assert.match((await response.json()).error, /requires a CCD code and positive position/);
+});
+
 test('/fetch rejects missing and oversized payloads', async () => {
     assert.equal((await handleFetch(new Request('https://jaag.test/fetch'), inflate)).status, 400);
     const oversized = 'A'.repeat(Math.ceil(MAX_COMPRESSED_BYTES * 4 / 3) + 8);

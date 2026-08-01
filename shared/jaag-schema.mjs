@@ -287,9 +287,11 @@ export function validateSuperset(document) {
             } else if (ligand.source === 'ccd'
                 && ligand.ccdCodes.some(code => typeof code !== 'string' || !code.trim() || code !== code.trim())) {
                 errors.push(`${ref} CCD codes must be non-empty strings without surrounding whitespace`);
-            } else if (ligand.source === 'smiles' && !ligand.smiles) {
+            } else if (ligand.source === 'smiles'
+                && (typeof ligand.smiles !== 'string' || !ligand.smiles.trim())) {
                 errors.push(`${ref} requires a SMILES value`);
-            } else if (ligand.source === 'file' && !ligand.path) {
+            } else if (ligand.source === 'file'
+                && (typeof ligand.path !== 'string' || !ligand.path.trim())) {
                 errors.push(`${ref} requires a ligand file path`);
             }
         } else if (typeof entity.sequence !== 'string' || !entity.sequence) {
@@ -300,7 +302,8 @@ export function validateSuperset(document) {
         }
         (Array.isArray(entity.modifications) ? entity.modifications : []).forEach((modification, modIndex) => {
             if (!modification || typeof modification !== 'object' || Array.isArray(modification)
-                || !modification.ccdCode || !Number.isInteger(modification.position) || modification.position < 1) {
+                || typeof modification.ccdCode !== 'string' || !modification.ccdCode.trim()
+                || !Number.isInteger(modification.position) || modification.position < 1) {
                 errors.push(`${ref} modification ${modIndex + 1} requires a CCD code and positive position`);
             }
         });

@@ -101,7 +101,13 @@ Chin Huang, Natarajan Kannan, Kelley W Moremen, Modeling glycans with AlphaFold 
    npm run build
    ```
    SugarDrawer will be built and the GAG templates will be patched
-3. **Open the Tool**: Launch `index.html` in a modern web browser
+3. **Serve the Tool**: From the repository root, start a local HTTP server:
+   ```
+   python3 -m http.server 8000
+   ```
+4. **Open the Tool**: Visit `http://localhost:8000/` in a modern web browser.
+   Opening `index.html` directly with a `file://` URL is not supported because
+   browsers block the shared JavaScript modules in that mode.
 
 ## OpenDDE compatibility
 
