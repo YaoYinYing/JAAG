@@ -167,13 +167,17 @@ function validateMsa(entity, errors, ref) {
         errors.push(`${ref} MSA must be an object`);
         return;
     }
+    if (!['protein', 'rna'].includes(entity.type)) {
+        errors.push(`${ref} MSA is supported only for proteins and RNA`);
+        return;
+    }
     for (const kind of ['paired', 'unpaired']) {
         const msa = entity.msa[kind];
         if (!msa) continue;
-        if (!['path', 'inline'].includes(msa.source) || typeof msa.value !== 'string' || !msa.value) {
+        if (!['path', 'inline'].includes(msa.source) || typeof msa.value !== 'string' || !msa.value.trim()) {
             errors.push(`${ref} ${kind} MSA requires a non-empty path or inline value`);
         }
-        if (entity.type !== 'protein' && kind === 'paired') {
+        if (entity.type === 'rna' && kind === 'paired') {
             errors.push(`${ref} paired MSA is supported only for proteins`);
         }
     }
@@ -199,8 +203,8 @@ function validateTemplates(entity, errors, warnings, ref) {
             errors.push(`${templateRef} must be an object`);
             return;
         }
-        const hasPath = typeof template.mmcifPath === 'string' && template.mmcifPath.length > 0;
-        const hasInline = typeof template.mmcif === 'string' && template.mmcif.length > 0;
+        const hasPath = typeof template.mmcifPath === 'string' && template.mmcifPath.trim().length > 0;
+        const hasInline = typeof template.mmcif === 'string' && template.mmcif.trim().length > 0;
         if (!hasPath && !hasInline) errors.push(`${templateRef} requires mmcifPath or mmcif`);
         else if (hasPath && hasInline) errors.push(`${templateRef} cannot contain both mmcifPath and mmcif`);
         for (const field of ['queryIndices', 'templateIndices']) {
@@ -212,7 +216,7 @@ function validateTemplates(entity, errors, warnings, ref) {
         }
         if (Array.isArray(template.queryIndices) && Array.isArray(template.templateIndices)
             && template.queryIndices.length !== template.templateIndices.length) {
-            warnings.push(`${templateRef} queryIndices and templateIndices have different lengths`);
+            errors.push(`${templateRef} queryIndices and templateIndices must have equal lengths`);
         }
     });
 }
@@ -224,7 +228,7 @@ function validateEndpoint(endpoint, errors, ref, chainIds) {
     }
     if (!chainIds.has(endpoint.chainId)) errors.push(`${ref} references unknown chain ID: ${endpoint.chainId}`);
     if (!Number.isInteger(endpoint.position) || endpoint.position < 1) errors.push(`${ref} position must be a positive integer`);
-    if (typeof endpoint.atom !== 'string' || !endpoint.atom) errors.push(`${ref} atom is required`);
+    if (typeof endpoint.atom !== 'string' || !endpoint.atom.trim()) errors.push(`${ref} atom is required`);
 }
 
 export function validateSuperset(document) {
@@ -238,17 +242,24 @@ export function validateSuperset(document) {
     if (typeof document.target !== 'string' || !Object.hasOwn(TARGETS, document.target)) {
         errors.push(`Unsupported target: ${document.target}`);
     }
+    if (document.options !== undefined
+        && (!document.options || typeof document.options !== 'object' || Array.isArray(document.options))) {
+        errors.push('options must be an object');
+    } else if (document.options?.alphafoldVersion !== undefined
+        && ![1, 2, 3, 4].includes(document.options.alphafoldVersion)) {
+        errors.push('AlphaFold 3 version must be 1, 2, 3, or 4');
+    }
 
     const job = document.job;
     if (!job || typeof job !== 'object' || Array.isArray(job)) {
         errors.push('job must be an object');
         return { valid: false, errors, warnings };
     }
-    if (typeof job.name !== 'string' || !job.name) errors.push('Job name is required');
+    if (typeof job.name !== 'string' || !job.name.trim()) errors.push('Job name is required');
     if (!Array.isArray(job.seeds) || job.seeds.length === 0) {
         errors.push('At least one model seed is required');
-    } else if (job.seeds.some(seed => !Number.isInteger(seed) || seed <= 0)) {
-        errors.push('Model seeds must contain positive integers');
+    } else if (job.seeds.some(seed => !Number.isInteger(seed) || seed <= 0 || seed > 4294967295)) {
+        errors.push('Model seeds must contain integers from 1 to 4294967295');
     }
     const entities = Array.isArray(job.entities) ? job.entities : [];
     if (!Array.isArray(job.entities)) {
@@ -265,15 +276,18 @@ export function validateSuperset(document) {
             errors.push(`${ref} must be an object`);
             return;
         }
-        if (typeof entity.key !== 'string' || !entity.key) errors.push(`${ref} key is required`);
+        if (typeof entity.key !== 'string' || !entity.key.trim()) errors.push(`${ref} key is required`);
         else if (keys.has(entity.key)) errors.push(`Duplicate entity key: ${entity.key}`);
         else keys.add(entity.key);
         if (!ENTITY_TYPES.has(entity.type)) errors.push(`${ref} has unsupported type: ${entity.type}`);
+        if (entity.description !== undefined && typeof entity.description !== 'string') {
+            errors.push(`${ref} description must be a string`);
+        }
         if (!Array.isArray(entity.chainIds) || entity.chainIds.length === 0) {
             errors.push(`${ref} requires at least one chain ID`);
         } else {
             entity.chainIds.forEach(chainId => {
-                if (typeof chainId !== 'string' || !chainId) errors.push(`${ref} has an invalid chain ID`);
+                if (typeof chainId !== 'string' || !chainId.trim()) errors.push(`${ref} has an invalid chain ID`);
                 else if (chainIds.has(chainId)) errors.push(`Duplicate chain ID: ${chainId}`);
                 else chainIds.add(chainId);
             });
@@ -294,11 +308,14 @@ export function validateSuperset(document) {
                 && (typeof ligand.path !== 'string' || !ligand.path.trim())) {
                 errors.push(`${ref} requires a ligand file path`);
             }
-        } else if (typeof entity.sequence !== 'string' || !entity.sequence) {
+        } else if (typeof entity.sequence !== 'string' || !entity.sequence.trim()) {
             errors.push(`${ref} requires sequence data`);
         }
         if (entity.modifications !== undefined && !Array.isArray(entity.modifications)) {
             errors.push(`${ref} modifications must be an array`);
+        }
+        if (entity.type === 'ligand' && Array.isArray(entity.modifications) && entity.modifications.length > 0) {
+            errors.push(`${ref} modifications are not supported for ligands`);
         }
         (Array.isArray(entity.modifications) ? entity.modifications : []).forEach((modification, modIndex) => {
             if (!modification || typeof modification !== 'object' || Array.isArray(modification)
@@ -316,15 +333,21 @@ export function validateSuperset(document) {
         validateEndpoint(bond?.left, errors, `Bond ${index + 1} left endpoint`, chainIds);
         validateEndpoint(bond?.right, errors, `Bond ${index + 1} right endpoint`, chainIds);
     });
-    if (job.customComponents !== undefined
-        && (!job.customComponents || typeof job.customComponents !== 'object' || Array.isArray(job.customComponents))) {
+    const customComponentsValid = job.customComponents === undefined
+        || (job.customComponents && typeof job.customComponents === 'object' && !Array.isArray(job.customComponents));
+    if (!customComponentsValid) {
         errors.push('Custom components must be an object');
     }
-    if (job.customComponents?.inline !== undefined && typeof job.customComponents.inline !== 'string') {
-        errors.push('Inline custom components must be a string');
+    if (job.customComponents?.inline !== undefined
+        && (typeof job.customComponents.inline !== 'string' || !job.customComponents.inline.trim())) {
+        errors.push('Inline custom components must be a non-empty string');
     }
-    if (job.customComponents?.path !== undefined && typeof job.customComponents.path !== 'string') {
-        errors.push('Custom component path must be a string');
+    if (job.customComponents?.path !== undefined
+        && (typeof job.customComponents.path !== 'string' || !job.customComponents.path.trim())) {
+        errors.push('Custom component path must be a non-empty string');
+    }
+    if (job.customComponents?.inline && job.customComponents?.path) {
+        errors.push('Custom components cannot contain both inline data and a path');
     }
     return { valid: errors.length === 0, errors, warnings };
 }

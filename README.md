@@ -43,8 +43,8 @@ validation, and target conversion separate.
 | Top-level JSON | One object with `dialect` and `version` | Job list | Job list |
 | Entity keys | `protein`, `dna`, `rna`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` |
 | Multimer IDs | String or ID array | ID array plus `count` | ID array plus `count` |
-| Paired/unpaired MSA paths | Supported | Supported | Supported |
-| Inline MSA | Supported | Not supported | Not supported |
+| MSA paths | Protein: paired/unpaired; RNA: unpaired | Protein: paired/unpaired; RNA: unpaired | Protein: paired/unpaired; RNA: unpaired |
+| Inline MSA | Protein: paired/unpaired; RNA: unpaired | Not supported | Not supported |
 | AlphaFold template objects | Supported | Not supported | Not supported |
 | Custom `userCCD` | Supported | Only JAAG built-in aliases are mapped to standard CCD IDs | Only JAAG built-in aliases are mapped to standard CCD IDs |
 | Covalent bonds | `bondedAtomPairs` with chain IDs | `covalent_bonds` with entity/copy indices | `covalent_bonds` with entity/copy indices |
