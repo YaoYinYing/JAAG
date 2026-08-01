@@ -29,6 +29,30 @@ Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.ppt
 - **Target-aware Validation**: Reports Protenix-specific compatibility errors before copy or download
 - **Protenix Input Guide**: https://github.com/bytedance/Protenix/blob/main/docs/infer_json_format.md
 
+### Unified input and share links
+
+JAAG first represents every job as a versioned, target-neutral `jaag-superset`
+document. Explicit AlphaFold 3, OpenDDE, and Protenix adapters then serialize that
+document to the selected output format. This keeps form collection, common
+validation, and target conversion separate.
+
+The **Share** button stores that neutral input in the `p` query parameter as
+pako/DEFLATE-compressed JSON encoded with URL-safe base64. Opening the link
+restores the editable input. Compression is not encryption: anyone with the URL
+can recover the input, and the URL may be retained in browser history or server
+logs.
+
+The same payload can be downloaded non-interactively from `/fetch`:
+
+```bash
+curl -fL 'https://example.org/fetch?p=PAYLOAD' -o input.json
+wget --content-disposition 'https://example.org/fetch?p=PAYLOAD'
+```
+
+Valid payloads return the selected target's JSON with an attachment filename.
+Malformed, oversized, schema-invalid, or target-incompatible payloads return a
+non-success response and never carry an attachment header.
+
 ### Glycan Structure Management
 - **Integrated SugarDrawer**: Built-in glycan drawing interface with popup modal support
 - **GlycoCT Processing**: Full GlycoCT format parsing and conversion to bondedAtomPairs + CCD codes
@@ -165,7 +189,7 @@ protenix pred -i input.json -o ./output -n protenix_base_default_v1.0.0
 - **Validation Required**: Resolve JAAG validation errors before submitting JSON to AlphaFold 3, OpenDDE, or Protenix
 - **Sequence Limits**: Be aware of AlphaFold 3 sequence length limitations (around 5000 tokens)
 - **Database Availability**: External database lookups depend on server availability
-- **Privacy**: No data is sent to servers controlled by this project. When using glycan lookup features, the app makes direct client-side requests to third-party APIs (e.g., GlyGen, GlyTouCan). 
+- **Privacy**: Normal editing stays in the browser. Share links contain compressed input data in their URL; compression is not encryption, and the URL may appear in browser history or server logs. When using glycan lookup features, the app makes direct client-side requests to third-party APIs (e.g., GlyGen, GlyTouCan).
 
 ## Acknowledgments
 

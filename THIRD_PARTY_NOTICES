@@ -18,6 +18,9 @@ CDN-Loaded Libraries (not redistributed here)
 - Font Awesome Free — Font Awesome Free License
   https://fontawesome.com/
   License: https://fontawesome.com/license/free
+- Pako — MIT License
+  https://github.com/nodeca/pako
+  License: https://github.com/nodeca/pako/blob/master/LICENSE
 
 External Services / APIs (client-side calls from the browser)
 - GlyGen API — https://www.glygen.org/
