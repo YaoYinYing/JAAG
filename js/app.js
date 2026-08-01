@@ -40,6 +40,7 @@ class AlphaFold3Generator {
     }
 
     debounceGenerate() {
+        if (this.isRestoringSharedInput) return;
         clearTimeout(this.generateTimeout);
         this.generateTimeout = setTimeout(() => {
             this.generateJSON();
@@ -97,6 +98,7 @@ class AlphaFold3Generator {
     }
 
     async generateJSON() {
+        if (this.isRestoringSharedInput) return;
         try {
             const outputTarget = this.getOutputTarget();
             const { collectedJob, inputDocument, core } = await this.buildSupersetDocument(outputTarget);

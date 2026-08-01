@@ -33,7 +33,12 @@ test('shared-input hydration preserves explicit multimer IDs and commits bonds',
         },
         JAAGCoreReady: Promise.resolve(),
         JAAGCore: { validateSuperset: () => ({ valid: true, errors: [] }) },
-        JAAGShare: { decodeSharePayload: async () => inputDocument },
+        JAAGShare: {
+            decodeSharePayload: async () => {
+                assert.equal(window.app.isRestoringSharedInput, true);
+                return inputDocument;
+            }
+        },
         pako: { inflate: value => value },
         addEventListener: (name, listener) => { if (name === 'DOMContentLoaded') readyListener = listener; }
     };
@@ -75,4 +80,5 @@ test('shared-input hydration preserves explicit multimer IDs and commits bonds',
     assert.deepEqual(Array.from(window.app.sequences[0].multimerChainIds), ['A', 'B']);
     assert.equal(element('seq_1_chainList').textContent, 'A, B');
     assert.deepEqual(window.app.bondedAtomPairs[0].data, [['A', 1, 'CA'], ['G', 1, 'C1']]);
+    assert.equal(window.app.isRestoringSharedInput, false);
 });

@@ -114,6 +114,8 @@
         if (custom?.inline) window.app.userCCDs.shared = { userCCD: custom.inline };
         if (custom?.path) setValue('userCCDPath', custom.path);
         window.app.updateOutputTargetUI();
+        clearTimeout(window.app.generateTimeout);
+        window.app.isRestoringSharedInput = false;
         await window.app.generateJSON();
         window.app.showSuccess('Shared JAAG input restored');
     }
@@ -144,6 +146,7 @@
     window.addEventListener('DOMContentLoaded', async () => {
         const payload = new URL(window.location.href).searchParams.get('p');
         if (!payload) return;
+        window.app.isRestoringSharedInput = true;
         try {
             await window.JAAGCoreReady;
             const inputDocument = await window.JAAGShare.decodeSharePayload(
@@ -152,6 +155,7 @@
             );
             await restoreDocument(inputDocument);
         } catch (error) {
+            window.app.isRestoringSharedInput = false;
             window.app?.showError(`Cannot restore shared input: ${error.message}`);
         }
     });
