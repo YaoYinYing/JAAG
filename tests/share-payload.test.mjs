@@ -46,6 +46,28 @@ test('/fetch rejects malformed and semantically invalid payloads without attachm
     assert.equal(invalid.headers.get('content-disposition'), null);
 });
 
+test('/fetch returns 422 instead of throwing for malformed collection shapes', async () => {
+    const invalidDocument = documentFixture();
+    invalidDocument.job.entities = { protein: 'not-an-array' };
+    invalidDocument.job.bonds = 'not-an-array';
+    invalidDocument.job.customComponents = [];
+    const payload = encodeSharePayload(invalidDocument, deflateSync);
+
+    const response = await handleFetch(new Request(`https://jaag.test/fetch?p=${payload}`), inflate);
+
+    assert.equal(response.status, 422);
+    assert.equal(response.headers.get('content-disposition'), null);
+    assert.match((await response.json()).error, /Entities must be an array; Bonds must be an array; Custom components must be an object/);
+
+    const invalidNested = documentFixture();
+    invalidNested.job.entities[0].modifications = [null];
+    invalidNested.job.entities[0].templates = ['not-an-object'];
+    const nestedPayload = encodeSharePayload(invalidNested, deflateSync);
+    const nestedResponse = await handleFetch(new Request(`https://jaag.test/fetch?p=${nestedPayload}`), inflate);
+    assert.equal(nestedResponse.status, 422);
+    assert.match((await nestedResponse.json()).error, /modification 1 requires.*templates must contain objects/);
+});
+
 test('/fetch rejects missing and oversized payloads', async () => {
     assert.equal((await handleFetch(new Request('https://jaag.test/fetch'), inflate)).status, 400);
     const oversized = 'A'.repeat(Math.ceil(MAX_COMPRESSED_BYTES * 4 / 3) + 8);

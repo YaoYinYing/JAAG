@@ -206,13 +206,16 @@ export function validateSuperset(document) {
     } else if (job.seeds.some(seed => !Number.isInteger(seed) || seed <= 0)) {
         errors.push('Model seeds must contain positive integers');
     }
-    if (!Array.isArray(job.entities) || job.entities.length === 0) {
+    const entities = Array.isArray(job.entities) ? job.entities : [];
+    if (!Array.isArray(job.entities)) {
+        errors.push('Entities must be an array');
+    } else if (entities.length === 0) {
         errors.push('At least one entity is required');
     }
 
     const keys = new Set();
     const chainIds = new Set();
-    (job.entities || []).forEach((entity, index) => {
+    entities.forEach((entity, index) => {
         const ref = `Entity ${index + 1}`;
         if (!entity || typeof entity !== 'object' || Array.isArray(entity)) {
             errors.push(`${ref} must be an object`);
@@ -245,18 +248,32 @@ export function validateSuperset(document) {
         } else if (typeof entity.sequence !== 'string' || !entity.sequence) {
             errors.push(`${ref} requires sequence data`);
         }
-        (entity.modifications || []).forEach((modification, modIndex) => {
-            if (!modification.ccdCode || !Number.isInteger(modification.position) || modification.position < 1) {
+        if (entity.modifications !== undefined && !Array.isArray(entity.modifications)) {
+            errors.push(`${ref} modifications must be an array`);
+        }
+        (Array.isArray(entity.modifications) ? entity.modifications : []).forEach((modification, modIndex) => {
+            if (!modification || typeof modification !== 'object' || Array.isArray(modification)
+                || !modification.ccdCode || !Number.isInteger(modification.position) || modification.position < 1) {
                 errors.push(`${ref} modification ${modIndex + 1} requires a CCD code and positive position`);
             }
         });
+        if (entity.templates !== undefined && !Array.isArray(entity.templates)) {
+            errors.push(`${ref} templates must be an array`);
+        } else if (entity.templates?.some(template => !template || typeof template !== 'object' || Array.isArray(template))) {
+            errors.push(`${ref} templates must contain objects`);
+        }
         validateMsa(entity, errors, ref);
     });
 
-    (job.bonds || []).forEach((bond, index) => {
+    if (job.bonds !== undefined && !Array.isArray(job.bonds)) errors.push('Bonds must be an array');
+    (Array.isArray(job.bonds) ? job.bonds : []).forEach((bond, index) => {
         validateEndpoint(bond?.left, errors, `Bond ${index + 1} left endpoint`, chainIds);
         validateEndpoint(bond?.right, errors, `Bond ${index + 1} right endpoint`, chainIds);
     });
+    if (job.customComponents !== undefined
+        && (!job.customComponents || typeof job.customComponents !== 'object' || Array.isArray(job.customComponents))) {
+        errors.push('Custom components must be an object');
+    }
     if (job.customComponents?.inline !== undefined && typeof job.customComponents.inline !== 'string') {
         errors.push('Inline custom components must be a string');
     }
