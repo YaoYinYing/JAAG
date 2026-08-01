@@ -55,27 +55,37 @@ class AlphaFold3Generator {
         return document.getElementById('outputTarget')?.value || 'alphafold3';
     }
 
+    getOutputTargetConfig() {
+        const target = this.getOutputTarget();
+        return {
+            target,
+            name: target === 'protenix' ? 'Protenix' : target === 'opendde' ? 'OpenDDE' : 'AlphaFold 3',
+            usesServerJSON: target === 'opendde' || target === 'protenix'
+        };
+    }
+
     updateOutputTargetUI() {
-        const isOpenDDE = this.getOutputTarget() === 'opendde';
+        const targetConfig = this.getOutputTargetConfig();
+        const usesServerJSON = targetConfig.usesServerJSON;
         const versionSettings = document.getElementById('alphaFoldVersionSettings');
         const modelSeedSettings = document.getElementById('modelSeedSettings');
         const userCCDSection = document.getElementById('userCCDSection');
         const help = document.getElementById('outputTargetHelp');
         const outputLabel = document.getElementById('jsonOutputLabel');
 
-        versionSettings?.classList.toggle('d-none', isOpenDDE);
-        userCCDSection?.classList.toggle('d-none', isOpenDDE);
+        versionSettings?.classList.toggle('d-none', usesServerJSON);
+        userCCDSection?.classList.toggle('d-none', usesServerJSON);
         if (modelSeedSettings) {
-            modelSeedSettings.classList.toggle('col-md-8', !isOpenDDE);
-            modelSeedSettings.classList.toggle('col-md-12', isOpenDDE);
+            modelSeedSettings.classList.toggle('col-md-8', !usesServerJSON);
+            modelSeedSettings.classList.toggle('col-md-12', usesServerJSON);
         }
         if (help) {
-            help.textContent = isOpenDDE
-                ? 'AlphaFold Server-style JSON. File-path MSAs are supported; inline MSA, AlphaFold template objects, and custom userCCD are not.'
+            help.textContent = usesServerJSON
+                ? `${targetConfig.name} job-list JSON. File-path MSAs are supported; inline MSA, AlphaFold template objects, and custom userCCD are not.`
                 : 'AlphaFold 3 dialect, version 1–4';
         }
         if (outputLabel) {
-            outputLabel.textContent = isOpenDDE ? 'OpenDDE JSON Output' : 'AlphaFold 3 JSON Output';
+            outputLabel.textContent = `${targetConfig.name} JSON Output`;
         }
     }
 
@@ -89,12 +99,16 @@ class AlphaFold3Generator {
 
             this.updateOutputTargetUI();
 
-            if (outputTarget === 'opendde') {
-                if (!window.OpenDDEAdapter) {
-                    throw new Error('OpenDDE adapter failed to load');
+            const targetConfig = this.getOutputTargetConfig();
+            if (targetConfig.usesServerJSON) {
+                const adapter = outputTarget === 'protenix'
+                    ? window.ProtenixAdapter
+                    : window.OpenDDEAdapter;
+                if (!adapter) {
+                    throw new Error(`${targetConfig.name} adapter failed to load`);
                 }
-                const conversion = window.OpenDDEAdapter.convert(alphaFoldJob);
-                const contractValidation = window.OpenDDEAdapter.validate(conversion.data);
+                const conversion = adapter.convert(alphaFoldJob, targetConfig.name);
+                const contractValidation = adapter.validate(conversion.data, targetConfig.name);
                 const errors = [...new Set([...conversion.errors, ...contractValidation.errors])];
                 const warnings = [...new Set([...conversion.warnings, ...contractValidation.warnings])];
                 jsonData = conversion.data;
@@ -103,7 +117,7 @@ class AlphaFold3Generator {
                     document.getElementById('validationStatus'),
                     errors,
                     warnings,
-                    'OpenDDE'
+                    targetConfig.name
                 );
             } else {
                 validation = this.validateJSON(alphaFoldJob);

@@ -673,7 +673,12 @@ AlphaFold3Generator.prototype.downloadJSON = function() {
             // Download the already-formatted JSON text as displayed
             const cleanJSON = jsonText;
             
-            const defaultName = this.lastOutputTarget === 'opendde' ? 'opendde_input' : 'alphafold3_input';
+            const defaultNames = {
+                alphafold3: 'alphafold3_input',
+                opendde: 'opendde_input',
+                protenix: 'protenix_input'
+            };
+            const defaultName = defaultNames[this.lastOutputTarget] || defaultNames.alphafold3;
             const jobName = document.getElementById('jobName').value || defaultName;
             const filename = `${jobName.replace(/[^a-z0-9]/gi, '_')}.json`;
             
