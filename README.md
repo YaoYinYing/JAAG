@@ -1,6 +1,6 @@
-# JAAG: a JSON input file Assembler for AlphaFold 3 with Glycan integration 
+# JAAG: a JSON input file Assembler for AlphaFold 3 and OpenDDE with Glycan integration
 
-JAAG is a comprehensive web-based tool for generating AlphaFold 3 input JSON files with advanced glycan structure support and integrated SugarDrawer functionality.  
+JAAG is a comprehensive web-based tool for generating AlphaFold 3 and OpenDDE input JSON files with advanced glycan structure support and integrated SugarDrawer functionality.
 Web tool link: https://biofgreat.org/JAAG/  
 Full tutorial PDF: https://www.biofgreat.org/JAAG/Tutorial.pdf  
 Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.pptx
@@ -14,6 +14,14 @@ Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.ppt
 - **Sequence Multimer**: Automatic appending of iterated alphabets after the user-defined chain ID
 - **Advanced Configuration**: Model seeds generator (single/multiple), MSA files, templates, custom CCDs
 - **AF 3 Input Full Guide**: https://github.com/google-deepmind/alphafold3/blob/main/docs/input.md
+
+### OpenDDE JSON Generation
+
+- **AlphaFold Server-style JSON**: Generates OpenDDE's required top-level job list and entity names
+- **Shared JAAG Editor**: Reuses protein, DNA, RNA, ligand, glycan, multimer, modification, MSA-path, and covalent-bond inputs
+- **Target-aware Validation**: Prevents unsupported AlphaFold-only fields from being copied or downloaded as valid OpenDDE JSON
+- **OpenDDE Input Guide**: https://github.com/aurekaresearch/OpenDDE/blob/main/docs/infer_json_format.md
+
 ### Glycan Structure Management
 - **Integrated SugarDrawer**: Built-in glycan drawing interface with popup modal support
 - **GlycoCT Processing**: Full GlycoCT format parsing and conversion to bondedAtomPairs + CCD codes
@@ -26,12 +34,12 @@ Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.ppt
 ### Glycan-related AF3 Model Interpretation: 
 Chin Huang, Natarajan Kannan, Kelley W Moremen, Modeling glycans with AlphaFold 3: capabilities, caveats, and limitations, Glycobiology, Volume 35, Issue 10, October 2025, cwaf048, https://doi.org/10.1093/glycob/cwaf048
 ## Quick Start (through server: https://biofgreat.org/JAAG/)
-1. **Basic Setup**: Enter job name
+1. **Basic Setup**: Enter a job name and choose AlphaFold 3 standalone or OpenDDE
 2. **Add Sequences**: Use the sequence buttons to add proteins, ligands, RNA, or DNA
 3. **Draw Glycans**: Click the pencil icon to open SugarDrawer for glycan structure drawing  
    **Alternatives**: Copy and paste GlycoCT from a glycoinformatics database
 4. **Generate JSON**: JSON is automatically generated in real-time
-5. **Export**: Copy or download your complete AlphaFold 3 input file
+5. **Export**: Copy or download the input file for the selected target
 
 ## Quick Start (through download)
 1. **Download**: Download or clone this repo to your local machine
@@ -44,6 +52,53 @@ Chin Huang, Natarajan Kannan, Kelley W Moremen, Modeling glycans with AlphaFold 
    ```
    SugarDrawer will be built and the GAG templates will be patched
 3. **Open the Tool**: Launch `index.html` in a modern web browser
+
+## OpenDDE compatibility
+
+OpenDDE uses AlphaFold Server-style entity names rather than the standalone
+AlphaFold 3 dialect. JAAG converts the selected job automatically:
+
+| JAAG input | OpenDDE output |
+| --- | --- |
+| Protein, DNA, RNA | `proteinChain`, `dnaSequence`, `rnaSequence` |
+| Chain ID or multimer IDs | `id` list with matching `count` |
+| CCD ligand or glycan | Joined `CCD_...` ligand string |
+| SMILES ligand | OpenDDE ligand string |
+| `bondedAtomPairs` | Entity/copy-based `covalent_bonds` |
+| Protein, DNA, RNA modifications | OpenDDE modification fields with `CCD_` prefixes |
+| Paired/unpaired MSA paths | Preserved as file paths |
+
+OpenDDE does not accept inline MSA text, AlphaFold template objects, or custom
+`userCCD` data. JAAG reports these as validation errors instead of silently
+discarding them. Sequence descriptions are omitted with a warning. The known
+AlphaFold-only aliases `SIA-2`, `SLB-2`, `NGC-2`, and `NGE-2` are mapped back
+to their standard CCD IDs.
+
+Example output:
+
+```json
+[
+  {
+    "name": "example_job",
+    "modelSeeds": [101],
+    "sequences": [
+      {
+        "proteinChain": {
+          "count": 1,
+          "id": ["A"],
+          "sequence": "ACDEFGHIK"
+        }
+      }
+    ]
+  }
+]
+```
+
+Run the downloaded file with a standalone OpenDDE installation:
+
+```bash
+opendde pred -i input.json -o ./output
+```
 
 ## Guide
 
@@ -87,7 +142,7 @@ Chin Huang, Natarajan Kannan, Kelley W Moremen, Modeling glycans with AlphaFold 
 
 ## Other Notes
 
-- **Validation Required**: Always validate generated JSON before submission to AlphaFold 3
+- **Validation Required**: Resolve JAAG validation errors before submitting JSON to AlphaFold 3 or OpenDDE
 - **Sequence Limits**: Be aware of AlphaFold 3 sequence length limitations (around 5000 tokens)
 - **Database Availability**: External database lookups depend on server availability
 - **Privacy**: No data is sent to servers controlled by this project. When using glycan lookup features, the app makes direct client-side requests to third-party APIs (e.g., GlyGen, GlyTouCan). 

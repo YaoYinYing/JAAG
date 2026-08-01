@@ -399,14 +399,15 @@ AlphaFold3Generator.prototype.validateSequences = function(sequences) {
         const seqType = Object.keys(seq)[0];
         const seqData = seq[seqType];
         
-        // Check for duplicate chain IDs
-        if (seqData.id) {
-            if (usedChainIds.has(seqData.id)) {
-                errors.push(`Duplicate chain ID: ${seqData.id}`);
+        // Check every chain ID, including multimer ID arrays.
+        const chainIds = Array.isArray(seqData.id) ? seqData.id : [seqData.id];
+        chainIds.filter(Boolean).forEach(chainId => {
+            if (usedChainIds.has(chainId)) {
+                errors.push(`Duplicate chain ID: ${chainId}`);
             } else {
-                usedChainIds.add(seqData.id);
+                usedChainIds.add(chainId);
             }
-        }
+        });
         
         // Validate sequence-specific requirements
         switch (seqType) {
@@ -558,13 +559,14 @@ AlphaFold3Generator.prototype.validateProteinTemplates = function(templates, pro
 /**
  * Update validation status display with colors and icons
  */
-AlphaFold3Generator.prototype.updateValidationStatus = function(statusElement, errors, warnings) {
+AlphaFold3Generator.prototype.updateValidationStatus = function(statusElement, errors, warnings, targetName = 'AlphaFold 3') {
+    if (!statusElement) return;
     let icon, className, message;
     
     if (errors.length === 0 && warnings.length === 0) {
         icon = 'fas fa-check-circle text-success';
         className = 'text-success small';
-        message = 'Valid AlphaFold3 JSON';
+        message = `Valid ${targetName} JSON`;
     } else if (errors.length === 0) {
         icon = 'fas fa-exclamation-triangle text-warning';
         className = 'text-warning small';
@@ -577,7 +579,8 @@ AlphaFold3Generator.prototype.updateValidationStatus = function(statusElement, e
         if (errors.length > 2) message += '...';
     }
     
-    statusElement.innerHTML = `<i class="${icon} me-1"></i>${message}`;
+    statusElement.innerHTML = `<i class="${icon} me-1"></i>`;
+    statusElement.appendChild(document.createTextNode(message));
     statusElement.className = className;
     
     // Store full validation details for tooltip or detailed view
@@ -606,6 +609,11 @@ AlphaFold3Generator.prototype.formatJSONWithHighlighting = function(jsonData) {
 AlphaFold3Generator.prototype.copyJSON = function() {
     const jsonOutput = document.getElementById('jsonOutput');
     const jsonText = jsonOutput.textContent || jsonOutput.innerText;
+
+    if (!this.lastValidation?.valid) {
+        this.showError('Resolve JSON validation errors before copying');
+        return;
+    }
     
     if (jsonText && jsonText !== 'Click "Generate" to create AlphaFold3 JSON' && !jsonText.startsWith('Error:')) {
         navigator.clipboard.writeText(jsonText).then(() => {
@@ -653,6 +661,11 @@ AlphaFold3Generator.prototype.fallbackCopyToClipboard = function(text) {
 AlphaFold3Generator.prototype.downloadJSON = function() {
     const jsonOutput = document.getElementById('jsonOutput');
     const jsonText = jsonOutput.textContent || jsonOutput.innerText;
+
+    if (!this.lastValidation?.valid) {
+        this.showError('Resolve JSON validation errors before downloading');
+        return;
+    }
     
     if (jsonText && jsonText !== 'Click "Generate" to create AlphaFold3 JSON' && !jsonText.startsWith('Error:')) {
         // Use the formatted text from display to preserve formatting
@@ -660,7 +673,8 @@ AlphaFold3Generator.prototype.downloadJSON = function() {
             // Download the already-formatted JSON text as displayed
             const cleanJSON = jsonText;
             
-            const jobName = document.getElementById('jobName').value || 'alphafold3_input';
+            const defaultName = this.lastOutputTarget === 'opendde' ? 'opendde_input' : 'alphafold3_input';
+            const jobName = document.getElementById('jobName').value || defaultName;
             const filename = `${jobName.replace(/[^a-z0-9]/gi, '_')}.json`;
             
             const blob = new Blob([cleanJSON], { type: 'application/json' });

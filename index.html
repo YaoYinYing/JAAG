@@ -13,7 +13,7 @@
         <div class="row">
             <div class="col-12">
                 <h1 class="text-center mb-4">
-                    JAAG: <small class="fs-2">a JSON input file Assembler for AlphaFold 3 with Glycan integration</small>
+                    JAAG: <small class="fs-2">a JSON input file Assembler for AlphaFold 3 and OpenDDE with Glycan integration</small>
                 </h1>
             </div>
         </div>
@@ -38,7 +38,7 @@
                     <div class="collapse" id="descriptionCollapse">
                         <div class="card-body">
                         <p class="mb-3">
-                            JAAG is a web-based tool designed to facilitate the assembly of input JSON files for standalone AlphaFold 3.
+                            JAAG is a web-based tool designed to assemble input JSON files for standalone AlphaFold 3 and OpenDDE.
                         </p>
 
                         <h6>How to add glycans?</h6>
@@ -68,7 +68,7 @@
                         </ul>
                         
                         <div class="alert alert-info mt-3 mb-0" role="alert">
-                            <strong>Getting Started:</strong> Fill in the basic information below, then add your sequences to generate a complete AlphaFold 3 input JSON file.
+                            <strong>Getting Started:</strong> Choose an output target, fill in the basic information, then add your sequences to generate a complete input JSON file.
                         </div>
                         </div>
                     </div>
@@ -86,7 +86,15 @@
                                 <input type="text" class="form-control" id="jobName" placeholder="Enter job name" oninput="validateJobName(this)">
                                 <small class="text-muted">Allows letters, numbers, hyphens, and underscores</small>
                             </div>
-                            <div class="col-md-8">
+                            <div class="col-md-4">
+                                <label for="outputTarget" class="form-label">Output Target*</label>
+                                <select class="form-select" id="outputTarget" aria-describedby="outputTargetHelp" onchange="updateOutputTarget()">
+                                    <option value="alphafold3" selected>AlphaFold 3 standalone</option>
+                                    <option value="opendde">OpenDDE</option>
+                                </select>
+                                <small class="text-muted" id="outputTargetHelp">AlphaFold 3 dialect, version 1–4</small>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="mb-2">
                                     <button class="btn btn-outline-primary" type="button"
                                             data-bs-toggle="collapse"
@@ -100,7 +108,7 @@
                                 <div class="collapse" id="advancedFunctionsCollapse">
                                     <div class="card card-body">
                                         <div class="row">
-                                            <div class="col-md-4">
+                                            <div class="col-md-4" id="alphaFoldVersionSettings">
                                                 <label for="version" class="form-label">JSON Input Version*</label>
                                                 <select class="form-select" id="version">
                                                     <option value="4" selected>4</option>
@@ -115,7 +123,7 @@
                                                     <strong>v1:</strong> Basic format
                                                 </small>
                                             </div>
-                                            <div class="col-md-8">
+                                            <div class="col-md-8" id="modelSeedSettings">
                                                 <div class="d-flex align-items-center mb-2">
                                                     <label class="form-label me-1 mb-0">Model Seeds*</label>
                                                 </div>
@@ -185,7 +193,7 @@
 
 
                 <!-- userCCD Input Section -->
-                <div class="card mb-4">
+                <div class="card mb-4" id="userCCDSection">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <button class="btn btn-link text-start p-0 flex-grow-1"
                                 type="button"
@@ -266,7 +274,7 @@
 
                 <div class="card sticky-top" style="top: 20px;">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>JSON Output</span>
+                        <span id="jsonOutputLabel">AlphaFold 3 JSON Output</span>
                         <div class="btn-group btn-group-sm">
                             <button type="button" class="btn btn-outline-primary" onclick="generateJSON()" style="display: none;">
                                 <i class="fas fa-sync me-1"></i>Generate
@@ -284,7 +292,7 @@
                     </div>
                     <div class="card-body">
                         <div id="jsonOutput" class="json-output p-3">
-                            <span class="text-muted">Click "Generate" to create AlphaFold3 JSON</span>
+                            <span class="text-muted">Add a sequence to create AlphaFold 3 JSON</span>
                         </div>
                     </div>
                     <div class="card-footer">
@@ -321,6 +329,7 @@
     <script src="js/userccd-manager.js"></script>
     <script src="js/substituent-handler.js"></script>
     <script src="js/sugardrawer-integration.js"></script>
+    <script src="js/opendde-adapter.js"></script>
     <script src="js/app.js"></script>
     <script src="js/sequences.js"></script>
     <script src="js/embedded-userccd-data.js"></script>
