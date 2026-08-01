@@ -11,8 +11,6 @@ import DonorPosition from "sugar-sketcher/src/js/models/glycomics/dictionary/Don
 import Anomericity from "sugar-sketcher/src/js/models/glycomics/dictionary/Anomericity";
 import ReactDOM from "react-dom";
 import NonSymbolContent from "../horizonalUI/NonSymbolContent";
-import isEmpty from "lodash.isempty";
-import filter from "lodash.filter";
 
 export class EdgeTable extends React.Component {
     constructor(props) {
@@ -53,7 +51,7 @@ export class EdgeTable extends React.Component {
             }
         }
         liaise.newEdge = params;
-        if (isEmpty(filter(liaise.usedItems, {content: id}))) {
+        if (!liaise.usedItems.some(item => item.content === id)) {
             liaise.usedItems = {
                 type: params.id,
                 content: id

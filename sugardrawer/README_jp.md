@@ -155,7 +155,7 @@ $ NODE_ENV=name_of_API npm run release
 |release|https://glycosmos.org/glytoucans/index.json|
 |glyconavi|https://glyconavi.org/Glycans/pdb-wurcs.php|
 
-環境変数を指定しない場合、`build`では`development`、`release`では`release`が自動的に割り当てられる。
+環境変数を指定しない場合、`build`と`release`では`release`、開発用ビルドでは`glytoucan`が自動的に割り当てられる。
 
 ## 環境設定ファイル
 
@@ -163,8 +163,7 @@ $ NODE_ENV=name_of_API npm run release
 webpackはJavaScriptのソースコードを一つにまとめるバンドラであり、srcフォルダのファイル参照時にバージョンをES5に落とす。
 webpackを実行するコマンドは`package.json`で設定されており、具体的なコマンドの内訳は以下のファイルで設定されている。
 
-build, watch : `webpack.config.js`\
-release : `webpack.release.js`
+build, watch, release : `webpack.config.js`
 
 ### Bable
 <!--Babelは-->
@@ -177,7 +176,6 @@ release : `webpack.release.js`
 ### flow
 <!--flowは-->
 本ツールのflowは`.flowconfig`で設定している
-
 
 
 

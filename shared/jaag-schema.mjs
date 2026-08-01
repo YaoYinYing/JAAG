@@ -396,40 +396,6 @@ export function serializeAlphaFold3(document) {
     return { data, errors, warnings };
 }
 
-function validateServerData(data, targetName) {
-    const errors = [];
-    const warnings = [];
-    if (!Array.isArray(data) || data.length === 0) {
-        return { valid: false, errors: [`${targetName} JSON must be a non-empty top-level list`], warnings };
-    }
-    data.forEach((job, jobIndex) => {
-        if (!job?.name) errors.push(`Job ${jobIndex + 1} requires a name`);
-        if (!Array.isArray(job?.modelSeeds) || job.modelSeeds.some(seed => !Number.isInteger(seed) || seed <= 0)) {
-            errors.push(`Job ${jobIndex + 1} modelSeeds must contain positive integers`);
-        }
-        if (!Array.isArray(job?.sequences) || job.sequences.length === 0) {
-            errors.push(`Job ${jobIndex + 1} requires at least one sequence`);
-        }
-        (job?.sequences || []).forEach((entry, sequenceIndex) => {
-            const type = Object.keys(entry || {})[0];
-            const entity = entry?.[type];
-            if (!Object.values(SERVER_ENTITY_TYPES).includes(type) || Object.keys(entry || {}).length !== 1) {
-                errors.push(`Job ${jobIndex + 1} sequence ${sequenceIndex + 1} must contain one ${targetName} entity type`);
-                return;
-            }
-            if (!Number.isInteger(entity?.count) || entity.count < 1) {
-                errors.push(`Job ${jobIndex + 1} sequence ${sequenceIndex + 1} requires a positive count`);
-            }
-            if (entity?.id && (!Array.isArray(entity.id) || entity.id.length !== entity.count)) {
-                errors.push(`Job ${jobIndex + 1} sequence ${sequenceIndex + 1} id length must match count`);
-            }
-            if (type === 'ligand' && !entity?.ligand) errors.push(`Job ${jobIndex + 1} ligand ${sequenceIndex + 1} requires ligand data`);
-            if (type !== 'ligand' && !entity?.sequence) errors.push(`Job ${jobIndex + 1} sequence ${sequenceIndex + 1} requires sequence data`);
-        });
-    });
-    return { valid: errors.length === 0, errors, warnings };
-}
-
 export function serializeServerStyle(document, targetName) {
     const errors = [];
     const warnings = [];
@@ -513,12 +479,10 @@ export function serializeServerStyle(document, targetName) {
             }];
         });
     }
-    const data = [job];
-    const contract = validateServerData(data, targetName);
     return {
-        data,
-        errors: [...new Set([...errors, ...contract.errors])],
-        warnings: [...new Set([...warnings, ...contract.warnings])]
+        data: [job],
+        errors: [...new Set(errors)],
+        warnings: [...new Set(warnings)]
     };
 }
 

@@ -52,14 +52,13 @@ This command applies corrections to GAG (glycosaminoglycan) structure definition
 
 ### 2. Build source code
 
-There are three different builds available for SugarDrawer.\
-The following command will build all the source code of SugarDrawer.
+The following command creates the production SugarDrawer bundle.
 
 ```
 $ npm run build
 ```
 
-If you would like to release the SugarDrawer in public, please execute the following command.
+`release` is an alias for the same production build:
 
 ```
 $ npm run release
@@ -93,7 +92,7 @@ You can use the following search APIs:
 |release|https://glycosmos.org/glycans/show/{GlyTouCan_ID}|
 |glyconavi|https://glyconavi.org/hub/?wurcs={WURCS}|
 
-If you execute the build commands without selecting any environment variables, `NODE_ENV=development` will be automatically selected for `npm run build` and `NODE_ENV=release` for `npm run release`.
+Without `NODE_ENV`, production builds use `release`; development/watch builds use `glytoucan`.
 
 ### 3. Run SugarDrawer
 When the source code is finished building, `dist` directory will be generated in the SugarDrawer.

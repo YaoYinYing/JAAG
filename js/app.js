@@ -120,136 +120,7 @@ class AlphaFold3Generator {
             this.lastOutputData = jsonData;
             this.lastInputDocument = inputDocument;
             
-            // Custom formatting to keep PTM modifications on single lines
-            let jsonString = JSON.stringify(jsonData, null, 2);
-
-            // Replace multi-line PTM formatting with single-line formatting
-            jsonString = jsonString.replace(
-                /{\s+"ptmType":\s+"([^"]+)",\s+"ptmPosition":\s+(\d+)\s+}/gs,
-                '{"ptmType": "$1", "ptmPosition": $2}'
-            );
-
-            // Replace multi-line array formatting for indices with single-line formatting
-            jsonString = jsonString.replace(
-                /"queryIndices":\s*\[\s*([^\]]+?)\s*\]/gs,
-                (match, content) => {
-                    const cleanContent = content.replace(/\s+/g, ' ').trim();
-                    return `"queryIndices": [${cleanContent}]`;
-                }
-            );
-            jsonString = jsonString.replace(
-                /"templateIndices":\s*\[\s*([^\]]+?)\s*\]/gs,
-                (match, content) => {
-                    const cleanContent = content.replace(/\s+/g, ' ').trim();
-                    return `"templateIndices": [${cleanContent}]`;
-                }
-            );
-
-            // Replace multi-line modelSeeds formatting with single-line formatting
-            jsonString = jsonString.replace(
-                /"modelSeeds":\s*\[\s*([^\]]+?)\s*\]/gs,
-                (match, content) => {
-                    const cleanContent = content.replace(/\s+/g, ' ').trim();
-                    return `"modelSeeds": [${cleanContent}]`;
-                }
-            );
-
-            // Replace multi-line ccdCodes formatting with single-line formatting
-            jsonString = jsonString.replace(
-                /"ccdCodes":\s*\[\s*([^\]]+?)\s*\]/gs,
-                (match, content) => {
-                    const cleanContent = content.replace(/\s+/g, ' ').trim();
-                    return `"ccdCodes": [${cleanContent}]`;
-                }
-            );
-
-            // Replace multi-line id arrays formatting with single-line formatting
-            jsonString = jsonString.replace(
-                /"id":\s*\[\s*([^\]]+?)\s*\]/gs,
-                (match, content) => {
-                    const cleanContent = content.replace(/\s+/g, ' ').trim();
-                    return `"id": [${cleanContent}]`;
-                }
-            );
-
-            // Replace multi-line bondedAtomPairs formatting with single-line formatting
-            // Use bracket counting to properly match the complete bondedAtomPairs array
-            function findBondedAtomPairs(str) {
-                const startPattern = /"bondedAtomPairs":\s*\[/;
-                const match = str.match(startPattern);
-                if (!match) return null;
-
-                const startIndex = match.index + match[0].length - 1; // Position of opening bracket
-                let bracketCount = 0;
-                let endIndex = startIndex;
-
-                for (let i = startIndex; i < str.length; i++) {
-                    if (str[i] === '[') {
-                        bracketCount++;
-                    } else if (str[i] === ']') {
-                        bracketCount--;
-                        if (bracketCount === 0) {
-                            endIndex = i;
-                            break;
-                        }
-                    }
-                }
-
-                if (bracketCount === 0) {
-                    const fullMatch = str.substring(match.index, endIndex + 1);
-                    const arrayContent = str.substring(startIndex, endIndex + 1);
-                    return { fullMatch, arrayContent, startIndex: match.index, endIndex: endIndex + 1 };
-                }
-                return null;
-            }
-
-            const bondedAtomPairsMatch = findBondedAtomPairs(jsonString);
-            if (bondedAtomPairsMatch) {
-
-                try {
-                    // Parse the array content directly
-                    const bondArray = JSON.parse(bondedAtomPairsMatch.arrayContent);
-
-                    // Format each bond pair as a compact single line
-                    const formattedPairs = bondArray.map((bond, index) => {
-                        if (Array.isArray(bond) && bond.length === 2) {
-                            // Each bond should be [["EntityID", ResidueID, "AtomName"], ["EntityID", ResidueID, "AtomName"]]
-                            const formattedBond = JSON.stringify(bond).replace(/\s+/g, '');
-                            return formattedBond;
-                        } else {
-                            return JSON.stringify(bond);
-                        }
-                    });
-
-                    const replacement = `"bondedAtomPairs": [\n  ${formattedPairs.join(',\n  ')}\n]`;
-
-                    // Replace the original bondedAtomPairs section with the formatted version
-                    jsonString = jsonString.substring(0, bondedAtomPairsMatch.startIndex) +
-                                replacement +
-                                jsonString.substring(bondedAtomPairsMatch.endIndex);
-                } catch (parseError) {
-
-                    // Fallback: Use regex to extract individual bond pairs
-                    const atomArrayRegex = /\[\s*"[^"]*",\s*\d+,\s*"[^"]*"\s*\]/gs;
-                    const atomArrays = bondedAtomPairsMatch.arrayContent.match(atomArrayRegex);
-
-                    if (atomArrays && atomArrays.length > 0 && atomArrays.length % 2 === 0) {
-                        const pairs = [];
-                        for (let i = 0; i < atomArrays.length; i += 2) {
-                            const atom1 = atomArrays[i].replace(/\s+/g, '');
-                            const atom2 = atomArrays[i + 1].replace(/\s+/g, '');
-                            pairs.push(`[${atom1},${atom2}]`);
-                        }
-                        const replacement = `"bondedAtomPairs": [\n  ${pairs.join(',\n  ')}\n]`;
-
-                        // Replace the original bondedAtomPairs section with the formatted version
-                        jsonString = jsonString.substring(0, bondedAtomPairsMatch.startIndex) +
-                                    replacement +
-                                    jsonString.substring(bondedAtomPairsMatch.endIndex);
-                    } else {
-                    }
-                }
-            }
+            const jsonString = JSON.stringify(jsonData, null, 2);
 
             const outputElement = document.getElementById('jsonOutput');
 
@@ -266,37 +137,6 @@ class AlphaFold3Generator {
     }
 
     // buildAlphaFold3JSON is now implemented in json-generator.js as a prototype method
-
-    copyJSON() {
-        const jsonText = document.getElementById('jsonOutput').textContent;
-        if (jsonText && jsonText !== 'Click "Generate" to create AlphaFold3 JSON') {
-            navigator.clipboard.writeText(jsonText).then(() => {
-                this.showSuccess('JSON copied to clipboard!');
-            }).catch(() => {
-                this.showError('Failed to copy JSON');
-            });
-        }
-    }
-
-    downloadJSON() {
-        const jsonText = document.getElementById('jsonOutput').textContent;
-        if (jsonText && jsonText !== 'Click "Generate" to create AlphaFold3 JSON') {
-            const jobName = document.getElementById('jobName').value || 'alphafold3_input';
-            const filename = `${jobName.replace(/[^a-z0-9]/gi, '_')}.json`;
-            
-            const blob = new Blob([jsonText], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            this.showSuccess(`JSON downloaded as ${filename}`);
-        }
-    }
 
     showSuccess(message) {
         this.showToast(message, 'success');
@@ -447,85 +287,6 @@ function updateOutputTarget() {
     app.generateJSON();
 }
 
-
-function clearGlycan() {
-    document.getElementById('glycoCTOutput').value = '';
-    app.glycanData = null;
-    app.showSuccess('Glycan data cleared');
-}
-
-function exportGlycoCT() {
-    // Placeholder for actual GlycoCT export
-    const sampleGlycoCT = `RES
-1b:a-dgro-dgal-NON-2:6|1:a|2:keto|3:d
-2s:n-acetyl
-3b:b-dglc-HEX-1:5
-4s:n-acetyl
-LIN
-1:1d(2+1)2n
-2:1o(4+1)3d
-3:3d(2+1)4n`;
-    
-    document.getElementById('glycoCTOutput').value = sampleGlycoCT;
-    app.showSuccess('Sample GlycoCT exported (placeholder)');
-}
-
-function addGlycanToJSON() {
-    // This function is now handled by SugarDrawer integration
-    // Fallback for simple glycan builder only
-    let glycoCT = document.getElementById('glycoCTOutput')?.value || 
-                  document.getElementById('currentGlycoCT')?.value;
-    
-    if (!glycoCT) {
-        app.showError('No GlycoCT data to add. Please use SugarDrawer to create glycan structures.');
-        return;
-    }
-
-    // Validate GlycoCT structure before processing
-    if (typeof validateGlycoCTStructure === 'function') {
-        const validation = validateGlycoCTStructure(glycoCT);
-        if (!validation.valid) {
-            app.showError(`Invalid GlycoCT structure: ${validation.error}`);
-            return;
-        }
-    }
-
-    // Convert GlycoCT to ligand entry using enhanced parser
-    try {
-        const enhancedResult = convertGlycoCTToEnhancedLigand(glycoCT, "G");
-        
-        const sequenceEntry = {
-            id: `glycan_${Date.now()}`,
-            type: 'ligand',
-            data: enhancedResult.ligand,
-            bondedAtomPairs: enhancedResult.bondedAtomPairs
-        };
-        
-        app.sequences.push(sequenceEntry);
-        app.showSuccess('Glycan added to sequences');
-        app.generateJSON();
-        
-    } catch (error) {
-        app.showError('Error converting glycan structure: ' + error.message);
-    }
-    
-}
-
-function simulateGlycanDraw() {
-    // Simulate drawing a glycan structure
-    const sampleGlycoCT = `RES
-1b:a-dgro-dgal-NON-2:6|1:a|2:keto|3:d
-2s:n-acetyl
-3b:b-dglc-HEX-1:5
-4s:n-acetyl
-LIN
-1:1d(2+1)2n
-2:1o(4+1)3d
-3:3d(2+1)4n`;
-    
-    document.getElementById('glycoCTOutput').value = sampleGlycoCT;
-    app.showSuccess('Simulated glycan structure drawn');
-}
 
 /**
  * Update the page title with the job name
@@ -694,85 +455,6 @@ function cleanupMultipleSeedsInput(input) {
 }
 
 
-// Test function for toast stacking (can be removed in production)
-function testToastStacking() {
-    if (window.app) {
-        window.app.showSuccess('Success message - this is a success notification!');
-        setTimeout(() => window.app.showWarning('Warning message - this is a warning!'), 500);
-        setTimeout(() => window.app.showError('Error message - this is an error!'), 1000);
-        setTimeout(() => window.app.showInfo('Info message - this is just information.'), 1500);
-        setTimeout(() => window.app.showSuccess('Another success - toasts should stack nicely!'), 2000);
-    }
-}
-
-// Debug function to test regex patterns
-function debugRegexPatterns() {
-    const testLine = '6:4o(-1+1)7d';
-    const regex1 = /[do]\(0\+[0-9]+\)|[do]\([0-9]+\+0\)|[do]\(-[0-9]+\+[0-9]+\)|[do]\([0-9]+\+-[0-9]+\)/;
-    const regex2 = /^[0-9]+:[0-9]+[don]\([1-9][0-9]*\+[1-9][0-9]*\)[0-9]+[don]/;
-
-    if (window.app) {
-        window.app.showInfo(`Testing line: "${testLine}"`);
-        window.app.showInfo(`Regex1 (negative detection): ${regex1.test(testLine)}`);
-        window.app.showInfo(`Regex2 (positive validation): ${regex2.test(testLine)}`);
-    }
-
-}
-
-// Test function for GlycoCT validation (can be removed in production)
-function testGlycoCTValidation() {
-    const problematicGlycoCT = `RES
-1b:b-dglc-HEX-1:5
-2b:a-lgal-HEX-1:5|6:d
-3b:b-dglc-HEX-1:5
-4b:b-dman-HEX-1:5
-5b:a-dman-HEX-1:5
-6b:b-dglc-HEX-1:5
-7b:b-dgal-HEX-1:5
-8b:a-dgro-dgal-NON-2:6|1:a|2:keto|3:d
-9b:a-dman-HEX-1:5
-10b:b-dglc-HEX-1:5
-11b:b-dgal-HEX-1:5
-12b:a-dgro-dgal-NON-2:6|1:a|2:keto|3:d
-13s:n-acetyl
-14s:n-acetyl
-15s:n-acetyl
-16s:n-acetyl
-17s:n-acetyl
-18s:n-acetyl
-LIN
-1:1o(6+1)2d
-2:1o(4+1)3d
-3:3o(4+1)4d
-4:4o(6+1)5d
-5:5o(2+1)6d
-6:6o(4+1)7d
-7:7o(6+2)8d
-8:4o(3+1)9d
-9:9o(2+1)10d
-10:10o(-1+1)11d
-11:11o(6+2)12d
-12:1d(2+1)13n
-13:3d(2+1)14n
-14:6d(2+1)15n
-15:8d(5+1)16n
-16:10d(2+1)17n
-17:12d(5+1)18n`;
-
-    if (typeof validateGlycoCTStructure === 'function') {
-        const validation = validateGlycoCTStructure(problematicGlycoCT);
-
-        if (validation.valid) {
-            if (window.app) window.app.showError('❌ BUG: Structure should NOT be valid - it contains (-1) position!');
-        } else {
-            if (window.app) window.app.showSuccess(`✅ CORRECT: Validation properly rejected: ${validation.error}`);
-        }
-        // Analysis for debugging:
-    } else {
-        if (window.app) window.app.showError('Validation function not available');
-    }
-}
-
 // Make functions globally accessible
 window.updatePageTitle = updatePageTitle;
 window.validateJobName = validateJobName;
@@ -781,9 +463,6 @@ window.validateSeedCountInput = validateSeedCountInput;
 window.validateMultipleSeedsInput = validateMultipleSeedsInput;
 window.cleanupMultipleSeedsInput = cleanupMultipleSeedsInput;
 window.updateOutputTarget = updateOutputTarget;
-window.testToastStacking = testToastStacking;
-window.testGlycoCTValidation = testGlycoCTValidation;
-window.debugRegexPatterns = debugRegexPatterns;
 
 // Initialize the application when DOM is loaded
 let app;

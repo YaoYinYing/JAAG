@@ -8,8 +8,6 @@ import {liaise} from "../../script";
 import SubstituentType from "sugar-sketcher/src/js/models/glycomics/dictionary/SubstituentType";
 import ReactDOM from "react-dom";
 import NonSymbolContent from "../horizonalUI/NonSymbolContent";
-import isEmpty from "lodash.isempty";
-import filter from "lodash.filter";
 import {modeType} from "../modeType";
 import {clickContentModification} from "../../script/clickEvent/contentClickCursor";
 
@@ -28,7 +26,7 @@ export default class ModificationList extends React.Component {
             liaise.modeType = modeType.MODIFICATION;
         }
 
-        if (isEmpty(filter(liaise.usedItems, {content: liaise.newSubstituent.label}))) {
+        if (!liaise.usedItems.some(item => item.content === liaise.newSubstituent.label)) {
             liaise.usedItems = {
                 type: "substituent",
                 content: liaise.newSubstituent.label,
