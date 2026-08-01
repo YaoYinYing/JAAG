@@ -36,6 +36,25 @@ document. Explicit AlphaFold 3, OpenDDE, and Protenix adapters then serialize th
 document to the selected output format. This keeps form collection, common
 validation, and target conversion separate.
 
+#### JAAG target compatibility
+
+| Input behavior | AlphaFold 3 standalone | OpenDDE | Protenix |
+| --- | --- | --- | --- |
+| Top-level JSON | One object with `dialect` and `version` | Job list | Job list |
+| Entity keys | `protein`, `dna`, `rna`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` |
+| Multimer IDs | String or ID array | ID array plus `count` | ID array plus `count` |
+| Paired/unpaired MSA paths | Supported | Supported | Supported |
+| Inline MSA | Supported | Not supported | Not supported |
+| AlphaFold template objects | Supported | Not supported | Not supported |
+| Custom `userCCD` | Supported | Only JAAG built-in aliases are mapped to standard CCD IDs | Only JAAG built-in aliases are mapped to standard CCD IDs |
+| Covalent bonds | `bondedAtomPairs` with chain IDs | `covalent_bonds` with entity/copy indices | `covalent_bonds` with entity/copy indices |
+| Sequence descriptions | Preserved | Omitted with a warning | Omitted with a warning |
+| Ligand file paths | Not supported | Serialized as `FILE_<path>` | Serialized as `FILE_<path>` |
+
+File-backed ligands can be serialized through the neutral schema and `/fetch`,
+but the current browser form cannot restore them from a share link. JAAG rejects
+that restoration explicitly instead of changing the ligand type.
+
 The **Share** button stores that neutral input in the `p` query parameter as
 pako/DEFLATE-compressed JSON encoded with URL-safe base64. Opening the link
 restores the editable input. Compression is not encryption: anyone with the URL

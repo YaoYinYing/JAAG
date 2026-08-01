@@ -55,6 +55,9 @@
     async function restoreDocument(inputDocument) {
         const validation = window.JAAGCore.validateSuperset(inputDocument);
         if (!validation.valid) throw new Error(validation.errors.join('; '));
+        if (inputDocument.job.entities.some(entity => entity.type === 'ligand' && entity.ligand?.source === 'file')) {
+            throw new Error('Shared JAAG forms do not support ligand file paths');
+        }
         setValue('jobName', inputDocument.job.name);
         setValue('modelSeedsMultiple', inputDocument.job.seeds.join(', '));
         setValue('version', inputDocument.options?.alphafoldVersion || 4);

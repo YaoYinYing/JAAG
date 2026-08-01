@@ -82,6 +82,10 @@ test('target registry declares capabilities explicitly', () => {
     assert.equal(TARGETS.alphafold3.capabilities.inlineMsa, true);
     assert.equal(TARGETS.opendde.capabilities.inlineMsa, false);
     assert.equal(TARGETS.protenix.capabilities.msaPaths, true);
+
+    const result = serialize(fromAlphaFold3(alphaFoldFixture()), 'constructor');
+    assert.equal(result.data, null);
+    assert.match(result.errors.join('\n'), /Unsupported target: constructor/);
 });
 
 test('rejects invalid superset invariants before dispatch', () => {

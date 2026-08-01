@@ -235,7 +235,9 @@ export function validateSuperset(document) {
     }
     if (document.schema !== SCHEMA_NAME) errors.push(`schema must be ${SCHEMA_NAME}`);
     if (document.schemaVersion !== SCHEMA_VERSION) errors.push(`Unsupported schemaVersion: ${document.schemaVersion}`);
-    if (!TARGETS[document.target]) errors.push(`Unsupported target: ${document.target}`);
+    if (typeof document.target !== 'string' || !Object.hasOwn(TARGETS, document.target)) {
+        errors.push(`Unsupported target: ${document.target}`);
+    }
 
     const job = document.job;
     if (!job || typeof job !== 'object' || Array.isArray(job)) {
@@ -282,6 +284,9 @@ export function validateSuperset(document) {
                 errors.push(`${ref} requires a ligand source`);
             } else if (ligand.source === 'ccd' && (!Array.isArray(ligand.ccdCodes) || ligand.ccdCodes.length === 0)) {
                 errors.push(`${ref} requires at least one CCD code`);
+            } else if (ligand.source === 'ccd'
+                && ligand.ccdCodes.some(code => typeof code !== 'string' || !code.trim() || code !== code.trim())) {
+                errors.push(`${ref} CCD codes must be non-empty strings without surrounding whitespace`);
             } else if (ligand.source === 'smiles' && !ligand.smiles) {
                 errors.push(`${ref} requires a SMILES value`);
             } else if (ligand.source === 'file' && !ligand.path) {
@@ -529,8 +534,10 @@ export function serialize(document, target = document?.target) {
     if (!schemaValidation.valid) {
         return { data: null, errors: schemaValidation.errors, warnings: schemaValidation.warnings };
     }
+    if (typeof target !== 'string' || !Object.hasOwn(ADAPTERS, target)) {
+        return { data: null, errors: [`Unsupported target: ${target}`], warnings: [] };
+    }
     const adapter = ADAPTERS[target];
-    if (!adapter) return { data: null, errors: [`Unsupported target: ${target}`], warnings: [] };
     const result = adapter.serialize(document);
     return {
         data: result.data,

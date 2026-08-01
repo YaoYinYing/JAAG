@@ -86,6 +86,25 @@ test('/fetch rejects invalid templates and mixed MSA source modes', async () => 
     assert.match(error, /paired and unpaired MSA must use the same source type/);
 });
 
+test('/fetch rejects inherited target names and malformed CCD values', async () => {
+    const inheritedTarget = documentFixture();
+    inheritedTarget.target = 'constructor';
+    const targetPayload = encodeSharePayload(inheritedTarget, deflateSync);
+    const targetResponse = await handleFetch(new Request(`https://jaag.test/fetch?p=${targetPayload}`), inflate);
+    assert.equal(targetResponse.status, 422);
+    assert.match((await targetResponse.json()).error, /Unsupported target: constructor/);
+
+    const invalidCCD = documentFixture('alphafold3');
+    invalidCCD.job.entities.push({
+        key: 'ligand', type: 'ligand', chainIds: ['L'], ligand: { source: 'ccd', ccdCodes: [null] }
+    });
+    const ccdPayload = encodeSharePayload(invalidCCD, deflateSync);
+    const ccdResponse = await handleFetch(new Request(`https://jaag.test/fetch?p=${ccdPayload}`), inflate);
+    assert.equal(ccdResponse.status, 422);
+    assert.equal(ccdResponse.headers.get('content-disposition'), null);
+    assert.match((await ccdResponse.json()).error, /CCD codes must be non-empty strings/);
+});
+
 test('/fetch rejects missing and oversized payloads', async () => {
     assert.equal((await handleFetch(new Request('https://jaag.test/fetch'), inflate)).status, 400);
     const oversized = 'A'.repeat(Math.ceil(MAX_COMPRESSED_BYTES * 4 / 3) + 8);
