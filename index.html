@@ -286,6 +286,9 @@
                             <button type="button" class="btn btn-outline-primary" onclick="copyJSON()">
                                 <i class="fas fa-copy me-1"></i>Copy
                             </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="shareInput()" title="Copy a compressed link that restores this input">
+                                <i class="fas fa-link me-1"></i>Share
+                            </button>
                             <button type="button" class="btn btn-outline-primary" onclick="downloadJSON()">
                                 <i class="fas fa-download me-1"></i>Download
                             </button>
@@ -299,6 +302,9 @@
                     <div class="card-footer">
                         <div id="validationStatus" class="text-muted small">
                             <i class="fa-regular fa-face-smile me-1"></i>Ready to generate JSON
+                        </div>
+                        <div class="text-muted mt-1" style="font-size: 0.72rem;">
+                            <i class="fas fa-shield-halved me-1"></i>Share links embed the input data. Compression is not encryption.
                         </div>
                     </div>
                 </div>
@@ -322,6 +328,7 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     
     <!-- Application JS -->
     <script src="js/glycan-templates.js"></script>
@@ -330,7 +337,7 @@
     <script src="js/userccd-manager.js"></script>
     <script src="js/substituent-handler.js"></script>
     <script src="js/sugardrawer-integration.js"></script>
-    <script src="js/opendde-adapter.js"></script>
+    <script src="js/jaag-core-loader.js"></script>
     <script src="js/app.js"></script>
     <script src="js/sequences.js"></script>
     <script src="js/embedded-userccd-data.js"></script>
@@ -338,5 +345,6 @@
     <script src="js/enhanced-glycoct-parser.js"></script>
     <script src="js/glycan-enrichment.js"></script>
     <script src="js/json-generator.js"></script>
+    <script src="js/share-state.js"></script>
 </body>
 </html>

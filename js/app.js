@@ -40,6 +40,7 @@ class AlphaFold3Generator {
     }
 
     debounceGenerate() {
+        if (this.isRestoringSharedInput) return;
         clearTimeout(this.generateTimeout);
         this.generateTimeout = setTimeout(() => {
             this.generateJSON();
@@ -57,7 +58,7 @@ class AlphaFold3Generator {
 
     getOutputTargetConfig() {
         const target = this.getOutputTarget();
-        return {
+        return window.JAAGCore?.TARGETS?.[target] || {
             target,
             name: target === 'protenix' ? 'Protenix' : target === 'opendde' ? 'OpenDDE' : 'AlphaFold 3',
             usesServerJSON: target === 'opendde' || target === 'protenix'
@@ -89,43 +90,35 @@ class AlphaFold3Generator {
         }
     }
 
+    async buildSupersetDocument(target = this.getOutputTarget()) {
+        // Keep the mature DOM collector as a migration bridge; adapters consume only the neutral document.
+        const collectedJob = await this.buildAlphaFold3JSON();
+        const core = await window.JAAGCoreReady;
+        return { collectedJob, inputDocument: core.fromAlphaFold3(collectedJob, { target }), core };
+    }
+
     async generateJSON() {
+        if (this.isRestoringSharedInput) return;
         try {
-            // Call the enhanced JSON generator from json-generator.js (not the old app.js version)
-            const alphaFoldJob = await this.buildAlphaFold3JSON();
             const outputTarget = this.getOutputTarget();
-            let jsonData = alphaFoldJob;
-            let validation;
+            const { collectedJob, inputDocument, core } = await this.buildSupersetDocument(outputTarget);
+            const conversion = core.serialize(inputDocument, outputTarget);
+            const targetConfig = core.TARGETS[outputTarget];
+            const formValidation = this.validateJSON(collectedJob);
+            const errors = [...new Set([...formValidation.errors, ...conversion.errors])];
+            const warnings = [...new Set([...formValidation.warnings, ...conversion.warnings])];
+            const jsonData = conversion.data;
+            const validation = { valid: errors.length === 0, errors, warnings };
 
             this.updateOutputTargetUI();
-
-            const targetConfig = this.getOutputTargetConfig();
-            if (targetConfig.usesServerJSON) {
-                const adapter = outputTarget === 'protenix'
-                    ? window.ProtenixAdapter
-                    : window.OpenDDEAdapter;
-                if (!adapter) {
-                    throw new Error(`${targetConfig.name} adapter failed to load`);
-                }
-                const conversion = adapter.convert(alphaFoldJob, targetConfig.name);
-                const contractValidation = adapter.validate(conversion.data, targetConfig.name);
-                const errors = [...new Set([...conversion.errors, ...contractValidation.errors])];
-                const warnings = [...new Set([...conversion.warnings, ...contractValidation.warnings])];
-                jsonData = conversion.data;
-                validation = { valid: errors.length === 0, errors, warnings };
-                this.updateValidationStatus(
-                    document.getElementById('validationStatus'),
-                    errors,
-                    warnings,
-                    targetConfig.name
-                );
-            } else {
-                validation = this.validateJSON(alphaFoldJob);
-            }
+            this.updateValidationStatus(
+                document.getElementById('validationStatus'), errors, warnings, targetConfig.name
+            );
 
             this.lastValidation = validation;
             this.lastOutputTarget = outputTarget;
             this.lastOutputData = jsonData;
+            this.lastInputDocument = inputDocument;
             
             // Custom formatting to keep PTM modifications on single lines
             let jsonString = JSON.stringify(jsonData, null, 2);

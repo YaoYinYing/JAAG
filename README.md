@@ -29,6 +29,49 @@ Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.ppt
 - **Target-aware Validation**: Reports Protenix-specific compatibility errors before copy or download
 - **Protenix Input Guide**: https://github.com/bytedance/Protenix/blob/main/docs/infer_json_format.md
 
+### Unified input and share links
+
+JAAG first represents every job as a versioned, target-neutral `jaag-superset`
+document. Explicit AlphaFold 3, OpenDDE, and Protenix adapters then serialize that
+document to the selected output format. This keeps form collection, common
+validation, and target conversion separate.
+
+#### JAAG target compatibility
+
+| Input behavior | AlphaFold 3 standalone | OpenDDE | Protenix |
+| --- | --- | --- | --- |
+| Top-level JSON | One object with `dialect` and `version` | Job list | Job list |
+| Entity keys | `protein`, `dna`, `rna`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` |
+| Multimer IDs | String or ID array | ID array plus `count` | ID array plus `count` |
+| MSA paths | Protein: paired/unpaired; RNA: unpaired | Protein: paired/unpaired; RNA: unpaired | Protein: paired/unpaired; RNA: unpaired |
+| Inline MSA | Protein: paired/unpaired; RNA: unpaired | Not supported | Not supported |
+| AlphaFold template objects | Supported | Not supported | Not supported |
+| Custom `userCCD` | Supported | Only JAAG built-in aliases are mapped to standard CCD IDs | Only JAAG built-in aliases are mapped to standard CCD IDs |
+| Covalent bonds | `bondedAtomPairs` with chain IDs | `covalent_bonds` with entity/copy indices | `covalent_bonds` with entity/copy indices |
+| Sequence descriptions | Preserved | Omitted with a warning | Omitted with a warning |
+| Ligand file paths | Not supported | Serialized as `FILE_<path>` | Serialized as `FILE_<path>` |
+
+File-backed ligands can be serialized through the neutral schema and `/fetch`,
+but the current browser form cannot restore them from a share link. JAAG rejects
+that restoration explicitly instead of changing the ligand type.
+
+The **Share** button stores that neutral input in the `p` query parameter as
+pako/DEFLATE-compressed JSON encoded with URL-safe base64. Opening the link
+restores the editable input. Compression is not encryption: anyone with the URL
+can recover the input, and the URL may be retained in browser history or server
+logs.
+
+The same payload can be downloaded non-interactively from `/fetch`:
+
+```bash
+curl -fL 'https://example.org/fetch?p=PAYLOAD' -o input.json
+wget --content-disposition 'https://example.org/fetch?p=PAYLOAD'
+```
+
+Valid payloads return the selected target's JSON with an attachment filename.
+Malformed, oversized, schema-invalid, or target-incompatible payloads return a
+non-success response and never carry an attachment header.
+
 ### Glycan Structure Management
 - **Integrated SugarDrawer**: Built-in glycan drawing interface with popup modal support
 - **GlycoCT Processing**: Full GlycoCT format parsing and conversion to bondedAtomPairs + CCD codes
@@ -58,7 +101,13 @@ Chin Huang, Natarajan Kannan, Kelley W Moremen, Modeling glycans with AlphaFold 
    npm run build
    ```
    SugarDrawer will be built and the GAG templates will be patched
-3. **Open the Tool**: Launch `index.html` in a modern web browser
+3. **Serve the Tool**: From the repository root, start a local HTTP server:
+   ```
+   python3 -m http.server 8000
+   ```
+4. **Open the Tool**: Visit `http://localhost:8000/` in a modern web browser.
+   Opening `index.html` directly with a `file://` URL is not supported because
+   browsers block the shared JavaScript modules in that mode.
 
 ## OpenDDE compatibility
 
@@ -165,7 +214,7 @@ protenix pred -i input.json -o ./output -n protenix_base_default_v1.0.0
 - **Validation Required**: Resolve JAAG validation errors before submitting JSON to AlphaFold 3, OpenDDE, or Protenix
 - **Sequence Limits**: Be aware of AlphaFold 3 sequence length limitations (around 5000 tokens)
 - **Database Availability**: External database lookups depend on server availability
-- **Privacy**: No data is sent to servers controlled by this project. When using glycan lookup features, the app makes direct client-side requests to third-party APIs (e.g., GlyGen, GlyTouCan). 
+- **Privacy**: Normal editing stays in the browser. Share links contain compressed input data in their URL; compression is not encryption, and the URL may appear in browser history or server logs. When using glycan lookup features, the app makes direct client-side requests to third-party APIs (e.g., GlyGen, GlyTouCan).
 
 ## Acknowledgments
 
