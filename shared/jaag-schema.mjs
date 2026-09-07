@@ -486,6 +486,257 @@ export function serializeServerStyle(document, targetName) {
     };
 }
 
+// --- OpenFold3 adapter --------------------------------------------------------
+
+function openFold3ChainIds(chainIds) {
+    return chainIds.length === 1 ? chainIds[0] : [...chainIds];
+}
+
+export function serializeOpenFold3(document) {
+    const errors = [];
+    const warnings = [];
+    const custom = document.job.customComponents || {};
+    if (custom.path || custom.inline) {
+        errors.push('OpenFold 3 does not support AlphaFold userCCD/custom component inputs');
+    }
+
+    const chains = document.job.entities.map((entity, index) => {
+        const target = {};
+        switch (entity.type) {
+            case 'protein':
+                target.molecule_type = 'protein';
+                target.chain_ids = openFold3ChainIds(entity.chainIds);
+                target.sequence = entity.sequence;
+                if (entity.modifications?.length) {
+                    const residues = {};
+                    entity.modifications.forEach(mod => {
+                        residues[String(mod.position)] = normalizeCCD(mod.ccdCode);
+                    });
+                    target.non_canonical_residues = residues;
+                }
+                if (entity.msa?.unpaired?.value) {
+                    if (entity.msa.unpaired.source === 'path') target.main_msa_file_paths = entity.msa.unpaired.value;
+                    else errors.push(`OpenFold 3 requires precomputed MSA file paths for ${entity.chainIds.join(', ')}; inline MSA is unsupported`);
+                }
+                if (entity.msa?.paired?.value) {
+                    if (entity.msa.paired.source === 'path' && entity.chainIds.length > 1) target.paired_msa_file_paths = entity.msa.paired.value;
+                    else if (entity.msa.paired.source === 'path') warnings.push(`Paired MSA for single-copy chain ${entity.chainIds.join(', ')} was ignored for OpenFold 3`);
+                    else errors.push(`OpenFold 3 requires precomputed paired MSA file paths; inline paired MSA is unsupported`);
+                }
+                if (entity.templates?.length) {
+                    errors.push(`OpenFold 3 expects native template inputs (template_cif_paths/template_alignment_file_path), not AlphaFold template objects, for ${entity.chainIds.join(', ')}`);
+                }
+                break;
+            case 'dna':
+                target.molecule_type = 'dna';
+                target.chain_ids = openFold3ChainIds(entity.chainIds);
+                target.sequence = entity.sequence;
+                break;
+            case 'rna':
+                target.molecule_type = 'rna';
+                target.chain_ids = openFold3ChainIds(entity.chainIds);
+                target.sequence = entity.sequence;
+                if (entity.msa?.unpaired?.value) {
+                    if (entity.msa.unpaired.source === 'path') target.main_msa_file_paths = entity.msa.unpaired.value;
+                    else errors.push(`OpenFold 3 requires precomputed MSA file paths for RNA ${entity.chainIds.join(', ')}; inline MSA is unsupported`);
+                }
+                break;
+            case 'ligand':
+                target.molecule_type = 'ligand';
+                target.chain_ids = openFold3ChainIds(entity.chainIds);
+                if (entity.ligand.source === 'ccd') {
+                    target.ccd_codes = entity.ligand.ccdCodes.length === 1
+                        ? entity.ligand.ccdCodes[0]
+                        : [...entity.ligand.ccdCodes];
+                } else if (entity.ligand.source === 'smiles') {
+                    target.smiles = entity.ligand.smiles;
+                } else {
+                    errors.push(`OpenFold 3 does not support ligand file paths for ${entity.chainIds.join(', ')}`);
+                }
+                break;
+            default:
+                errors.push(`Entity ${index + 1} has unsupported type: ${entity.type}`);
+        }
+        return target;
+    });
+
+    const queries = {};
+    queries[document.job.name || 'query_1'] = { chains };
+    if (document.job.bonds?.length) {
+        errors.push('OpenFold 3 does not support AlphaFold bondedAtomPairs between chains');
+    }
+    if (document.job.seeds?.length > 1) {
+        warnings.push('OpenFold 3 reads model seeds from the CLI/runner config, not the input JSON; only a single query is emitted');
+    }
+
+    return { data: { queries }, errors, warnings };
+}
+
+// --- Chai-1 (FASTA) adapter ---------------------------------------------------
+
+export function serializeChaiFasta(document) {
+    const errors = [];
+    const warnings = [];
+    const custom = document.job.customComponents || {};
+    if (custom.path || custom.inline) {
+        errors.push('Chai-1 does not support AlphaFold userCCD/custom component inputs');
+    }
+
+    const blocks = document.job.entities.map((entity, index) => {
+        const headerName = entity.chainIds[0] || String(index + 1);
+        switch (entity.type) {
+            case 'protein':
+            case 'dna':
+            case 'rna':
+                return {
+                    header: `${entity.type}|name=${headerName}`,
+                    sequence: buildChaiModifiedSequence(entity)
+                };
+            case 'ligand': {
+                if (entity.ligand.source !== 'smiles') {
+                    errors.push(`Chai-1 FASTA ligands must be provided as SMILES; CCD-only chain ${entity.chainIds.join(', ')} cannot be represented`);
+                    return null;
+                }
+                return {
+                    header: `ligand|name=${headerName}`,
+                    sequence: entity.ligand.smiles
+                };
+            }
+            default:
+                errors.push(`Entity ${index + 1} has unsupported type: ${entity.type}`);
+                return null;
+        }
+    }).filter(Boolean);
+
+    for (const entity of document.job.entities) {
+        if (entity.type === 'protein' && entity.msa?.unpaired) {
+            warnings.push('Chai-1 reads MSAs from an --msa-directory/aligned.pqt file, not the FASTA, so protein MSA inputs were not encoded');
+        }
+        if (entity.templates?.length) {
+            warnings.push('Chai-1 templates are supplied as an m8 file via the CLI, not the FASTA; template inputs were not encoded');
+        }
+    }
+    if (document.job.bonds?.length) {
+        errors.push('Chai-1 FASTA does not support AlphaFold bondedAtomPairs; use the Chai constraints TSV instead');
+    }
+
+    const fasta = blocks.map(block => `>${block.header}\n${block.sequence}`).join('\n') + '\n';
+    return { data: fasta, errors, warnings };
+}
+
+function buildChaiModifiedSequence(entity) {
+    const modifications = (entity.modifications || [])
+        .filter(mod => Number.isInteger(mod.position) && mod.position >= 1);
+    if (modifications.length === 0) return entity.sequence;
+    // Replace each single-letter residue at the 1-based position with its bracket notation.
+    const chars = entity.sequence.split('');
+    for (const mod of modifications) {
+        const at = mod.position - 1;
+        if (at >= 0 && at < chars.length) {
+            chars[at] = `(${normalizeCCD(mod.ccdCode)})`;
+        }
+    }
+    return chars.join('');
+}
+
+// --- Boltz (YAML) adapter -----------------------------------------------------
+
+function yamlEscapeString(value) {
+    const stringValue = String(value);
+    if (/^\s/.test(stringValue)
+        || /[^A-Za-z0-9_./+\-]/.test(stringValue)
+        || Number.isFinite(Number(stringValue))) {
+        return `'${stringValue.replace(/'/g, "''")}'`;
+    }
+    return stringValue;
+}
+
+export function serializeBoltzYaml(document) {
+    const errors = [];
+    const warnings = [];
+    const custom = document.job.customComponents || {};
+    if (custom.path || custom.inline) {
+        errors.push('Boltz does not support AlphaFold userCCD/custom component inputs');
+    }
+
+    const sequences = [];
+    document.job.entities.forEach((entity, index) => {
+        const block = {};
+        switch (entity.type) {
+            case 'protein':
+            case 'dna':
+            case 'rna':
+                block.id = [...entity.chainIds];
+                block.sequence = entity.sequence;
+                if (entity.type === 'protein' && entity.msa?.unpaired?.value) {
+                    if (entity.msa.unpaired.source === 'path') block.msa = entity.msa.unpaired.value;
+                    else errors.push(`Boltz requires an MSA file path for ${entity.chainIds.join(', ')}; inline MSA data is unsupported`);
+                }
+                if (entity.modifications?.length) {
+                    block.modifications = entity.modifications.map(mod => ({
+                        position: mod.position,
+                        ccd: normalizeCCD(mod.ccdCode)
+                    }));
+                }
+                if (entity.templates?.length) {
+                    errors.push('Boltz expects native template inputs (templates section with cif/pdb paths), not AlphaFold template objects');
+                }
+                break;
+            case 'ligand':
+                block.id = [...entity.chainIds];
+                if (entity.ligand.source === 'ccd') {
+                    block.ccd = entity.ligand.ccdCodes.map(normalizeCCD).join('_');
+                    if (entity.ligand.ccdCodes.length > 1) {
+                        warnings.push(`Boltz expects a single CCD code per ligand; multi-CCD chain ${entity.chainIds.join(', ')} was written as ${block.ccd}`);
+                    }
+                } else if (entity.ligand.source === 'smiles') {
+                    block.smiles = entity.ligand.smiles;
+                } else {
+                    errors.push(`Boltz does not support ligand file paths for ${entity.chainIds.join(', ')}`);
+                    return;
+                }
+                break;
+            default:
+                errors.push(`Entity ${index + 1} has unsupported type: ${entity.type}`);
+                return;
+        }
+        sequences.push({ [entity.type]: block });
+    });
+
+    const lines = ['version: 1'];
+    lines.push('sequences:');
+    for (const seq of sequences) {
+        const [type, block] = Object.entries(seq)[0];
+        lines.push(`  - ${type}:`);
+        for (const [key, value] of Object.entries(block)) {
+            if (Array.isArray(value)) {
+                if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
+                    lines.push(`      ${key}:`);
+                    for (const item of value) {
+                        lines.push(`        - position: ${item.position}`);
+                        lines.push(`          ccd: ${yamlEscapeString(item.ccd)}`);
+                    }
+                } else {
+                    lines.push(`      ${key}:`);
+                    for (const item of value) lines.push(`        - ${yamlEscapeString(item)}`);
+                }
+            } else {
+                lines.push(`      ${key}: ${yamlEscapeString(value)}`);
+            }
+        }
+    }
+    if (document.job.bonds?.length) {
+        lines.push('constraints:');
+        document.job.bonds.forEach(bond => {
+            lines.push('  - bond:');
+            lines.push(`      atom1: ['${bond.left.chainId}', ${bond.left.position}, '${bond.left.atom}']`);
+            lines.push(`      atom2: ['${bond.right.chainId}', ${bond.right.position}, '${bond.right.atom}']`);
+        });
+    }
+
+    return { data: `${lines.join('\n')}\n`, errors, warnings };
+}
+
 export const ADAPTERS = Object.freeze({
     alphafold3: Object.freeze({
         name: 'AlphaFold 3',
@@ -498,6 +749,18 @@ export const ADAPTERS = Object.freeze({
     protenix: Object.freeze({
         name: 'Protenix',
         serialize: document => serializeServerStyle(document, 'Protenix')
+    }),
+    openfold3: Object.freeze({
+        name: 'OpenFold 3',
+        serialize: serializeOpenFold3
+    }),
+    chai: Object.freeze({
+        name: 'Chai-1',
+        serialize: serializeChaiFasta
+    }),
+    boltz: Object.freeze({
+        name: 'Boltz',
+        serialize: serializeBoltzYaml
     })
 });
 
@@ -505,16 +768,37 @@ export const TARGETS = Object.freeze({
     alphafold3: Object.freeze({
         name: 'AlphaFold 3',
         usesServerJSON: false,
+        outputFormat: 'json',
         capabilities: Object.freeze({ inlineMsa: true, msaPaths: true, templates: true, customComponents: true })
     }),
     opendde: Object.freeze({
         name: 'OpenDDE',
         usesServerJSON: true,
+        outputFormat: 'json',
         capabilities: Object.freeze({ inlineMsa: false, msaPaths: true, templates: false, customComponents: false })
     }),
     protenix: Object.freeze({
         name: 'Protenix',
         usesServerJSON: true,
+        outputFormat: 'json',
+        capabilities: Object.freeze({ inlineMsa: false, msaPaths: true, templates: false, customComponents: false })
+    }),
+    openfold3: Object.freeze({
+        name: 'OpenFold 3',
+        usesServerJSON: true,
+        outputFormat: 'json',
+        capabilities: Object.freeze({ inlineMsa: false, msaPaths: true, templates: false, customComponents: false })
+    }),
+    chai: Object.freeze({
+        name: 'Chai-1',
+        usesServerJSON: true,
+        outputFormat: 'fasta',
+        capabilities: Object.freeze({ inlineMsa: false, msaPaths: false, templates: false, customComponents: false })
+    }),
+    boltz: Object.freeze({
+        name: 'Boltz',
+        usesServerJSON: true,
+        outputFormat: 'yaml',
         capabilities: Object.freeze({ inlineMsa: false, msaPaths: true, templates: false, customComponents: false })
     })
 });
