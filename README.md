@@ -1,6 +1,6 @@
-# JAAG: a JSON input file Assembler for AlphaFold 3, OpenDDE, and Protenix with Glycan integration
+# JAAG: a JSON input file Assembler for AlphaFold 3, OpenDDE, Protenix, OpenFold 3, Chai-1, and Boltz with Glycan integration
 
-JAAG is a comprehensive web-based tool for generating AlphaFold 3, OpenDDE, and Protenix input JSON files with advanced glycan structure support and integrated SugarDrawer functionality.
+JAAG is a comprehensive web-based tool for generating input files for the major open AlphaFold-3-family structure prediction models — AlphaFold 3, OpenDDE, Protenix, OpenFold 3, Chai-1, and Boltz — with advanced glycan structure support and integrated SugarDrawer functionality.
 Web tool link: https://biofgreat.org/JAAG/  
 Full tutorial PDF: https://www.biofgreat.org/JAAG/Tutorial.pdf  
 Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.pptx
@@ -32,24 +32,29 @@ Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.ppt
 ### Unified input and share links
 
 JAAG first represents every job as a versioned, target-neutral `jaag-superset`
-document. Explicit AlphaFold 3, OpenDDE, and Protenix adapters then serialize that
-document to the selected output format. This keeps form collection, common
-validation, and target conversion separate.
+document. Explicit AlphaFold 3, OpenDDE, Protenix, OpenFold 3, Chai-1, and Boltz
+adapters then serialize that document to the selected output format. This keeps
+form collection, common validation, and target conversion separate.
 
 #### JAAG target compatibility
 
-| Input behavior | AlphaFold 3 standalone | OpenDDE | Protenix |
-| --- | --- | --- | --- |
-| Top-level JSON | One object with `dialect` and `version` | Job list | Job list |
-| Entity keys | `protein`, `dna`, `rna`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` |
-| Multimer IDs | String or ID array | ID array plus `count` | ID array plus `count` |
-| MSA paths | Protein: paired/unpaired; RNA: unpaired | Protein: paired/unpaired; RNA: unpaired | Protein: paired/unpaired; RNA: unpaired |
-| Inline MSA | Protein: paired/unpaired; RNA: unpaired | Not supported | Not supported |
-| AlphaFold template objects | Supported | Not supported | Not supported |
-| Custom `userCCD` | Supported | Only JAAG built-in aliases are mapped to standard CCD IDs | Only JAAG built-in aliases are mapped to standard CCD IDs |
-| Covalent bonds | `bondedAtomPairs` with chain IDs | `covalent_bonds` with entity/copy indices | `covalent_bonds` with entity/copy indices |
-| Sequence descriptions | Preserved | Omitted with a warning | Omitted with a warning |
-| Ligand file paths | Not supported | Serialized as `FILE_<path>` | Serialized as `FILE_<path>` |
+The output "format" column notes the payload type each target requests: OpenDDE,
+Protenix and OpenFold 3 take JSON files, Chai-1 takes a FASTA file, and Boltz
+takes a YAML file.
+
+| Input behavior | AlphaFold 3 standalone | OpenDDE / Protenix | OpenFold 3 | Chai-1 | Boltz |
+| --- | --- | --- | --- | --- | --- |
+| Output format | JSON | JSON job list | JSON `queries` | FASTA | YAML |
+| Top-level JSON | One object with `dialect` and `version` | Job list | `{ "queries": { "<name>": { "chains": [...] } } }` | n/a | n/a |
+| Entity keys | `protein`, `dna`, `rna`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` | `molecule_type` + `chain_ids` | `protein\|rna\|dna\|ligand` FASTA headers | `protein`, `dna`, `rna`, `ligand` |
+| Multimer IDs | String or ID array | ID array plus `count` | String or ID array | n/a | ID array |
+| MSA paths | Protein: paired/unpaired; RNA: unpaired | Protein: paired/unpaired; RNA: unpaired | `main_msa_file_paths` / `paired_msa_file_paths` | Not encoded (CLI `--msa-directory`) | Protein `msa:` |
+| Inline MSA | Protein: paired/unpaired; RNA: unpaired | Not supported | Not supported | Not supported | Not supported |
+| AlphaFold template objects | Supported | Not supported | Not supported (native `template_cif_paths`) | Not supported (CLI m8 templates) | Not supported (native `templates` section) |
+| Custom `userCCD` | Supported | Only JAAG built-in aliases | Not supported | Not supported | Not supported |
+| Covalent bonds | `bondedAtomPairs` with chain IDs | `covalent_bonds` with entity/copy indices | Not supported | Not supported (constraints TSV) | `constraints.bond` |
+| Sequence descriptions | Preserved | Omitted with a warning | n/a | n/a | n/a |
+| Ligand file paths | Not supported | Serialized as `FILE_<path>` | Not supported | Not supported | Not supported |
 
 File-backed ligands can be serialized through the neutral schema and `/fetch`,
 but the current browser form cannot restore them from a share link. JAAG rejects
@@ -68,7 +73,8 @@ curl -fL 'https://example.org/fetch?p=PAYLOAD' -o input.json
 wget --content-disposition 'https://example.org/fetch?p=PAYLOAD'
 ```
 
-Valid payloads return the selected target's JSON with an attachment filename.
+Valid payloads return the selected target's input file (JSON, FASTA, or YAML
+depending on the target) with an attachment filename.
 Malformed, oversized, schema-invalid, or target-incompatible payloads return a
 non-success response and never carry an attachment header.
 
@@ -84,7 +90,7 @@ non-success response and never carry an attachment header.
 ### Glycan-related AF3 Model Interpretation: 
 Chin Huang, Natarajan Kannan, Kelley W Moremen, Modeling glycans with AlphaFold 3: capabilities, caveats, and limitations, Glycobiology, Volume 35, Issue 10, October 2025, cwaf048, https://doi.org/10.1093/glycob/cwaf048
 ## Quick Start (through server: https://biofgreat.org/JAAG/)
-1. **Basic Setup**: Enter a job name and choose AlphaFold 3 standalone, OpenDDE, or Protenix
+1. **Basic Setup**: Enter a job name and choose AlphaFold 3 standalone, OpenDDE, Protenix, OpenFold 3, Chai-1, or Boltz
 2. **Add Sequences**: Use the sequence buttons to add proteins, ligands, RNA, or DNA
 3. **Draw Glycans**: Click the pencil icon to open SugarDrawer for glycan structure drawing  
    **Alternatives**: Copy and paste GlycoCT from a glycoinformatics database
@@ -167,6 +173,106 @@ Run the downloaded file with a standalone Protenix installation:
 
 ```bash
 protenix pred -i input.json -o ./output -n protenix_base_default_v1.0.0
+```
+
+## OpenFold 3 compatibility
+
+OpenFold 3 takes a JSON file whose top level is a `queries` dictionary. JAAG
+maps each job to a single query named after the job name, with one chain per
+entity:
+
+```json
+{
+  "queries": {
+    "example_job": {
+      "chains": [
+        {
+          "molecule_type": "protein",
+          "chain_ids": "A",
+          "sequence": "ACDEFGHIK",
+          "non_canonical_residues": { "1": "MSE" }
+        },
+        {
+          "molecule_type": "ligand",
+          "chain_ids": "L",
+          "smiles": "CCO"
+        }
+      ]
+    }
+  }
+}
+```
+
+Precomputed MSA paths map to `main_msa_file_paths`/`paired_msa_file_paths`.
+OpenFold 3 does not accept AlphaFold template objects, custom `userCCD`, or
+`bondedAtomPairs` between chains — JAAG reports these as validation errors. Model
+seeds are passed on the OpenFold 3 command line, not in the input JSON.
+
+Run the downloaded file with a standalone OpenFold 3 installation:
+
+```bash
+openfold3-predict -i input.json -o ./output --use_msa_server
+```
+
+## Chai-1 compatibility
+
+Chai-1's `chai-lab fold` command reads sequences from a **FASTA** file rather
+than JSON. JAAG writes one FASTA block per entity with Chai-1's
+`entity_type|name=CHAIN` headers, and SMILES on the sequence line for ligands:
+
+```text
+>protein|name=A
+ACDEFGHIK
+>ligand|name=L
+CCO
+```
+
+Protein/DNA/RNA modifications are written inline with Chai-1's bracket notation
+(e.g. `AC(MSE)DEF...`), and multi-copy chains inherit their first chain ID as the
+FASTA name. Chai-1 reads MSAs and templates from separate CLI files, not the
+FASTA, so JAAG emits a warning instead of embedding them. CCD-only ligands and
+`bondedAtomPairs` cannot be represented in the FASTA and are reported as errors.
+
+Run the downloaded file with a standalone Chai-1 installation:
+
+```bash
+chai-lab fold --use-msa-server --use-templates-server input.fasta output_folder
+```
+
+## Boltz compatibility
+
+Boltz's `boltz predict` command reads a **YAML** file. JAAG writes the `version`,
+`sequences`, and (when present) `constraints` sections:
+
+```yaml
+version: 1
+sequences:
+  - protein:
+      id: [A]
+      sequence: ACDEFGHIK
+      msa: ./msa/a.a3m
+      modifications:
+        - position: 1
+          ccd: MSE
+  - ligand:
+      id: [L]
+      smiles: CCO
+constraints:
+  - bond:
+      atom1: ['A', 1, 'N']
+      atom2: ['L', 1, 'C1']
+```
+
+Protein MSA paths map to `msa:`. Protein/DNA/RNA modifications map to a
+`modifications` list, and `bondedAtomPairs` map to `constraints.bond`. Boltz does
+not accept AlphaFold template objects or custom `userCCD`, and each ligand must
+resolve to a single CCD code or a SMILES string — JAAG reports the corresponding
+validation errors.
+
+Run the downloaded file with a standalone Boltz installation:
+
+```bash
+boltz predict input.yaml --use_msa_server
 ```
 
 ## Guide

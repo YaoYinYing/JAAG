@@ -60,8 +60,14 @@ class AlphaFold3Generator {
         const target = this.getOutputTarget();
         return window.JAAGCore?.TARGETS?.[target] || {
             target,
-            name: target === 'protenix' ? 'Protenix' : target === 'opendde' ? 'OpenDDE' : 'AlphaFold 3',
-            usesServerJSON: target === 'opendde' || target === 'protenix'
+            name: target === 'protenix' ? 'Protenix'
+                : target === 'opendde' ? 'OpenDDE'
+                : target === 'openfold3' ? 'OpenFold 3'
+                : target === 'chai' ? 'Chai-1'
+                : target === 'boltz' ? 'Boltz'
+                : 'AlphaFold 3',
+            usesServerJSON: target !== 'alphafold3',
+            outputFormat: target === 'chai' ? 'fasta' : target === 'boltz' ? 'yaml' : 'json'
         };
     }
 
@@ -81,12 +87,18 @@ class AlphaFold3Generator {
             modelSeedSettings.classList.toggle('col-md-12', usesServerJSON);
         }
         if (help) {
-            help.textContent = usesServerJSON
-                ? `${targetConfig.name} job-list JSON. File-path MSAs are supported; inline MSA, AlphaFold template objects, and custom userCCD are not.`
-                : 'AlphaFold 3 dialect, version 1–4';
+            const helpText = {
+                alphafold3: 'AlphaFold 3 dialect, version 1–4',
+                opendde: 'OpenDDE job-list JSON. File-path MSAs are supported; inline MSA, AlphaFold template objects, and custom userCCD are not.',
+                protenix: 'Protenix job-list JSON. File-path MSAs are supported; inline MSA, AlphaFold template objects, and custom userCCD are not.',
+                openfold3: 'OpenFold 3 queries JSON. Precomputed-MSA paths, SMILES/CCD ligands, and non-canonical residues are supported.',
+                chai: 'Chai-1 FASTA. Proteins/DNA/RNA and SMILES ligands; MSAs and templates are passed via CLI flags, not the FASTA.',
+                boltz: 'Boltz YAML input. Protein/DNA/RNA, SMILES/CCD ligands, MSA paths, modifications, and covalent bonds are supported.'
+            }[this.getOutputTarget()];
+            help.textContent = helpText || `${targetConfig.name} output`;
         }
         if (outputLabel) {
-            outputLabel.textContent = `${targetConfig.name} JSON Output`;
+            outputLabel.textContent = `${targetConfig.name} Output`;
         }
     }
 
@@ -120,12 +132,15 @@ class AlphaFold3Generator {
             this.lastOutputData = jsonData;
             this.lastInputDocument = inputDocument;
             
-            const jsonString = JSON.stringify(jsonData, null, 2);
+            const outputFormat = targetConfig.outputFormat || (outputTarget === 'chai' ? 'fasta' : outputTarget === 'boltz' ? 'yaml' : 'json');
+            const rendered = outputFormat === 'json'
+                ? JSON.stringify(jsonData, null, 2)
+                : String(jsonData);
 
             const outputElement = document.getElementById('jsonOutput');
 
             if (outputElement) {
-                outputElement.textContent = jsonString;
+                outputElement.textContent = rendered;
             }
 
         } catch (error) {

@@ -180,3 +180,29 @@ test('/fetch rejects missing and oversized payloads', async () => {
     const oversized = 'A'.repeat(Math.ceil(MAX_COMPRESSED_BYTES * 4 / 3) + 8);
     assert.equal((await handleFetch(new Request(`https://jaag.test/fetch?p=${oversized}`), inflate)).status, 413);
 });
+
+test('/fetch returns Chai-1 FASTA and Boltz YAML text with matching extensions', async () => {
+    const source = fromAlphaFold3({
+        name: 'glyco', modelSeeds: [1], dialect: 'alphafold3', version: 4,
+        sequences: [
+            { protein: { id: 'A', sequence: 'ACDE' } },
+            { ligand: { id: 'L', smiles: 'CCO' } }
+        ]
+    }, { target: 'chai' });
+
+    const chai = await handleFetch(new Request(`https://jaag.test/fetch?p=${encodeSharePayload(source, deflateSync)}`), inflate);
+    assert.equal(chai.status, 200);
+    assert.equal(chai.headers.get('content-type'), 'text/plain; charset=utf-8');
+    assert.match(chai.headers.get('content-disposition'), /glyco\.fasta/);
+    assert.match(await chai.text(), />protein\|name=A\nACDE\n>ligand\|name=L\nCCO\n/);
+
+    const boltzDoc = fromAlphaFold3(
+        { name: 'glyco', modelSeeds: [1], dialect: 'alphafold3', version: 4, sequences: [{ protein: { id: 'A', sequence: 'ACDE' } }] },
+        { target: 'boltz' }
+    );
+    const boltz = await handleFetch(new Request(`https://jaag.test/fetch?p=${encodeSharePayload(boltzDoc, deflateSync)}`), inflate);
+    assert.equal(boltz.status, 200);
+    assert.equal(boltz.headers.get('content-type'), 'text/yaml; charset=utf-8');
+    assert.match(boltz.headers.get('content-disposition'), /glyco\.yaml/);
+    assert.match(await boltz.text(), /version: 1/);
+});

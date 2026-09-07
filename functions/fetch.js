@@ -1,4 +1,4 @@
-import { serialize, validateSuperset } from '../shared/jaag-schema.mjs';
+import { serialize, TARGETS, validateSuperset } from '../shared/jaag-schema.mjs';
 import { decodeSharePayload, inflateWithDecompressionStream } from '../shared/share-payload.mjs';
 
 function errorResponse(status, message) {
@@ -8,10 +8,17 @@ function errorResponse(status, message) {
     });
 }
 
+const MIME_TYPES = {
+    json: 'application/json; charset=utf-8',
+    fasta: 'text/plain; charset=utf-8',
+    yaml: 'text/yaml; charset=utf-8'
+};
+
 function filenameFor(document) {
     const fallback = `${document.target || 'jaag'}_input`;
     const safe = (document.job?.name || fallback).replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '');
-    return `${safe || fallback}.json`;
+    const extension = TARGETS[document.target]?.outputFormat || 'json';
+    return `${safe || fallback}.${extension}`;
 }
 
 export async function handleFetch(request, inflate = inflateWithDecompressionStream) {
@@ -32,10 +39,16 @@ export async function handleFetch(request, inflate = inflateWithDecompressionStr
     const result = serialize(document, document.target);
     if (result.errors.length > 0) return errorResponse(422, result.errors.join('; '));
 
-    return new Response(`${JSON.stringify(result.data, null, 2)}\n`, {
+    const format = TARGETS[document.target]?.outputFormat || 'json';
+    const body = format === 'json'
+        ? `${JSON.stringify(result.data, null, 2)}\n`
+        : String(result.data);
+    const mime = MIME_TYPES[format] || MIME_TYPES.json;
+
+    return new Response(body, {
         status: 200,
         headers: {
-            'Content-Type': 'application/json; charset=utf-8',
+            'Content-Type': mime,
             'Content-Disposition': `attachment; filename="${filenameFor(document)}"`,
             'Cache-Control': 'private, no-store',
             'X-Content-Type-Options': 'nosniff'

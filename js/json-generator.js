@@ -670,19 +670,31 @@ AlphaFold3Generator.prototype.downloadJSON = function() {
     if (jsonText && jsonText !== 'Click "Generate" to create AlphaFold3 JSON' && !jsonText.startsWith('Error:')) {
         // Use the formatted text from display to preserve formatting
         try {
-            // Download the already-formatted JSON text as displayed
+            // Download the already-formatted text as displayed
             const cleanJSON = jsonText;
             
             const defaultNames = {
                 alphafold3: 'alphafold3_input',
                 opendde: 'opendde_input',
-                protenix: 'protenix_input'
+                protenix: 'protenix_input',
+                openfold3: 'openfold3_input',
+                chai: 'chai_input',
+                boltz: 'boltz_input'
+            };
+            const extensions = {
+                alphafold3: 'json',
+                opendde: 'json',
+                protenix: 'json',
+                openfold3: 'json',
+                chai: 'fasta',
+                boltz: 'yaml'
             };
             const defaultName = defaultNames[this.lastOutputTarget] || defaultNames.alphafold3;
             const jobName = document.getElementById('jobName').value || defaultName;
-            const filename = `${jobName.replace(/[^a-z0-9]/gi, '_')}.json`;
+            const extension = extensions[this.lastOutputTarget] || 'json';
+            const filename = `${jobName.replace(/[^a-z0-9]/gi, '_')}.${extension}`;
             
-            const blob = new Blob([cleanJSON], { type: 'application/json' });
+            const blob = new Blob([cleanJSON], { type: 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
