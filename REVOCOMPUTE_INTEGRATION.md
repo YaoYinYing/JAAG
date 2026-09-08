@@ -4,7 +4,7 @@ This document describes the dependency-free JAAG core extracted into
 `shared/`, the two distributable bundles built from it, the REvoCompute
 input-workspace plugin contract that the builder bundle satisfies, and the
 exact steps to replace the duplicated `jaag-builder` stubs in the
-[REvoCompute](https://github.com/chinchc/JAAG) Docker runners.
+[REvoCompute](https://github.com/YaoYinYing/REvoCompute) Docker runners.
 
 ---
 
