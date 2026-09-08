@@ -72,24 +72,29 @@
       .join(",");
   }
 
-  function parseModifications(raw, entityType) {
+  function parseModifications(raw) {
     var modifications = [];
-    String(raw || "").split(/,/).filter(Boolean).forEach(function (item) {
-      var parts = item.trim().split(":");
-      if (parts.length !== 2) return;
-      var position = Number(parts[0]);
-      var ccdCode = parts[1].trim();
-      if (!Number.isInteger(position) || position < 1 || !ccdCode) return;
+    var errors = [];
+    String(raw || "").split(/,/).filter(function (item) { return item.trim(); }).forEach(function (item) {
+      var trimmed = item.trim();
+      var parts = trimmed.split(":");
+      var position = parts.length === 2 ? Number(parts[0]) : NaN;
+      var ccdCode = parts.length === 2 ? parts[1].trim() : "";
+      if (!Number.isInteger(position) || position < 1 || !ccdCode) {
+        errors.push("Invalid modification \"" + trimmed + "\" — expected position:CCD (e.g. 1:MSE)");
+        return;
+      }
       modifications.push({ ccdCode: ccdCode, position: position });
     });
-    return modifications;
+    return { modifications: modifications, errors: errors };
   }
 
   function parseBonds(raw) {
     var bonds = [];
+    var errors = [];
     String(raw || "").split(/\n/).filter(function (line) { return line.trim(); }).forEach(function (line) {
-      var halves = line.trim().split(/\s+/);
-      if (halves.length !== 2) return;
+      var trimmed = line.trim();
+      var halves = trimmed.split(/\s+/);
       function endpoint(text) {
         var parts = text.split(":");
         if (parts.length !== 3) return null;
@@ -97,21 +102,33 @@
         if (!Number.isInteger(position) || position < 1) return null;
         return { chainId: parts[0].trim(), position: position, atom: parts[2].trim() };
       }
+      if (halves.length !== 2) {
+        errors.push("Invalid covalent bond \"" + trimmed + "\" — expected CHAIN:POS:ATOM CHAIN:POS:ATOM");
+        return;
+      }
       var left = endpoint(halves[0]);
       var right = endpoint(halves[1]);
-      if (left && right) bonds.push({ left: left, right: right });
+      if (!left || !right) {
+        errors.push("Invalid covalent bond \"" + trimmed + "\" — expected CHAIN:POS:ATOM CHAIN:POS:ATOM");
+        return;
+      }
+      bonds.push({ left: left, right: right });
     });
-    return bonds;
+    return { bonds: bonds, errors: errors };
   }
 
   workspaceApi.registry.register({
     id: "jaag-builder",
     mount: function (target, definition, context) {
       var options = definition.options || {};
+      // A runner that declares only `options.target` must not expose other
+      // dialects in the selector: the generated file has to match the runner's
+      // native input format. An explicit `options.targets` list is the only way
+      // to opt into multi-target editing.
       var allowedTargets = Array.isArray(options.targets) && options.targets.length
         ? options.targets
-        : ["alphafold3", "opendde"];
-      var targetName = options.target && allowedTargets.indexOf(options.target) >= 0
+        : (options.target ? [options.target] : ["alphafold3", "opendde"]);
+      var targetName = allowedTargets.indexOf(options.target) >= 0
         ? options.target
         : allowedTargets[0];
 
@@ -125,6 +142,7 @@
 
       var entityRows = [];
       var entityList = element("div", "builder-entities");
+      var lastParseFieldErrors = [];
 
       function addEntityRow(initial) {
         var row = element("div", "builder-entity");
@@ -156,7 +174,7 @@
           msaInput.style.display = typeSelect.value === "rna" || typeSelect.value === "protein" ? "" : "none";
         }
         ["input", "change"].forEach(function (eventName) {
-          typeSelect.addEventListener(eventName, refresh);
+          typeSelect.addEventListener(eventName, function () { syncVisibility(); refresh(); });
           chainInput.addEventListener(eventName, refresh);
           sequenceArea.addEventListener(eventName, refresh);
           ligandInput.addEventListener(eventName, refresh);
@@ -201,10 +219,12 @@
       });
 
       function collectModel() {
+        lastParseFieldErrors = [];
         var entities = entityRows.map(function (record) {
           var type = record.typeSelect.value;
           var chainIds = record.chainInput.value.split(",").map(function (value) { return value.trim(); }).filter(Boolean);
-          var modifications = parseModifications(record.modificationsInput.value, type);
+          var parsedModifications = parseModifications(record.modificationsInput.value);
+          if (parsedModifications.errors.length) lastParseFieldErrors.push.apply(lastParseFieldErrors, parsedModifications.errors);
           var entity = { type: type, chainIds: chainIds.length ? chainIds : (type === "ligand" ? "L" : "A") };
 
           if (type === "ligand") {
@@ -216,7 +236,7 @@
             }
           } else {
             entity.sequence = record.sequenceArea.value;
-            if (modifications.length) entity.modifications = modifications;
+            if (parsedModifications.modifications.length) entity.modifications = parsedModifications.modifications;
             var msaPath = record.msaInput.value.trim();
             if (msaPath) entity.msa = { unpaired: { source: "path", value: msaPath } };
           }
@@ -228,9 +248,17 @@
           seeds: parseSeedsInput(seedsInput.value),
           entities: entities
         };
-        var bonds = parseBonds(bondsArea.value);
-        if (bonds.length) model.bonds = bonds;
+        var parsedBonds = parseBonds(bondsArea.value);
+        if (parsedBonds.errors.length) lastParseFieldErrors.push.apply(lastParseFieldErrors, parsedBonds.errors);
+        if (parsedBonds.bonds.length) model.bonds = parsedBonds.bonds;
         return model;
+      }
+
+      function outputMeta(targetValue) {
+        var outputFormat = core.TARGETS && core.TARGETS[targetValue] && core.TARGETS[targetValue].outputFormat;
+        if (outputFormat === "fasta") return { extension: "fasta", type: "text/plain" };
+        if (outputFormat === "yaml") return { extension: "yaml", type: "text/plain" };
+        return { extension: "json", type: "application/json" };
       }
 
       function materialize(result, targetValue) {
@@ -238,8 +266,9 @@
           context.setGeneratedFile(null);
           return;
         }
+        var meta = outputMeta(targetValue);
         var rendered = typeof result.data === "string" ? result.data + "\n" : JSON.stringify(result.data, null, 2) + "\n";
-        context.setGeneratedFile(new File([rendered], "jaag-" + targetValue + ".json", { type: "application/json" }));
+        context.setGeneratedFile(new File([rendered], "jaag-" + targetValue + "." + meta.extension, { type: meta.type }));
       }
 
       function refresh() {
@@ -247,9 +276,10 @@
         var targetValue = targetSelect.value;
         var model = collectModel();
         var result = core.build(model, targetValue);
-        if (result.errors.length) {
+        var errors = lastParseFieldErrors.concat(result.errors);
+        if (errors.length) {
           summary.textContent = "Invalid JAAG input";
-          error.textContent = result.errors.join("; ");
+          error.textContent = errors.join("; ");
           error.hidden = false;
           context.setGeneratedFile(null);
         } else {
@@ -281,14 +311,17 @@
         },
         validate: function () {
           if (!entityRows.length && !bondsArea.value.trim()) return [];
-          var result = core.build(collectModel(), targetSelect.value);
-          if (result.errors.length) {
-            error.textContent = result.errors.join("; ");
+          var targetValue = targetSelect.value;
+          var model = collectModel();
+          var result = core.build(model, targetValue);
+          var errors = lastParseFieldErrors.concat(result.errors);
+          if (errors.length) {
+            error.textContent = errors.join("; ");
             error.hidden = false;
             context.setGeneratedFile(null);
-            return result.errors;
+            return errors;
           }
-          materialize(result, targetSelect.value);
+          materialize(result, targetValue);
           error.hidden = true; error.textContent = "";
           return [];
         },

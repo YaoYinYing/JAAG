@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+// Number of entity-type options rendered by the builder's per-row type selector.
+const ENTITY_TYPE_COUNT = 4;
+
 // Contract test for the standalone REvoCompute plugin bundle. It mirrors the
 // harness REvoCompute uses in tests/js/test_contracts.js: the bundle is loaded
 // with `new Function("global", "window", "document", code)` against a minimal
@@ -21,6 +24,7 @@ function fakeNode(tag) {
         style: {},
         children: [],
         parentNode: null,
+        _listeners: {},
         appendChild(child) {
             child.parentNode = node;
             node.children.push(child);
@@ -31,12 +35,29 @@ function fakeNode(tag) {
                 node.parentNode.children = node.parentNode.children.filter(child => child !== node);
             }
         },
-        addEventListener() {},
-        removeEventListener() {},
+        addEventListener(type, fn) {
+            if (!node._listeners[type]) node._listeners[type] = [];
+            node._listeners[type].push(fn);
+        },
+        removeEventListener(type, fn) {
+            if (node._listeners[type]) node._listeners[type] = node._listeners[type].filter(listener => listener !== fn);
+        },
+        dispatchEvent(type) {
+            (node._listeners[type] || []).forEach(fn => fn({ type }));
+        },
         setAttribute() {},
         getAttribute() { return null; }
     };
     return node;
+}
+
+function walk(node, predicate) {
+    if (predicate(node)) return node;
+    for (const child of node.children || []) {
+        const found = walk(child, predicate);
+        if (found) return found;
+    }
+    return null;
 }
 
 function loadPluginBundle() {
@@ -136,4 +157,71 @@ test('jaag-builder targets opendde and synthesizes a server-style job list', asy
     const generated = JSON.parse((await context.generatedFile.text()).trim());
     assert.ok(Array.isArray(generated), 'OpenDDE payload must be a job list');
     assert.equal(generated[0].sequences[0].proteinChain.sequence, 'ACDEFGHIK');
+});
+
+test('single-target runners expose only their configured dialect', () => {
+    const { state, registry } = loadPluginBundle();
+    const definition = registry.definitions['jaag-builder'];
+
+    const target = fakeNode('div');
+    const context = { setGeneratedFile() {}, generatedFile() { return null; }, form: { name: 'alphafold3', params: [] }, changed() {} };
+    definition.mount(target, { options: { target: 'alphafold3' } }, context);
+
+    // The target selector is the very first node appended to the mount target.
+    const targetSelect = target.children[0];
+    assert.equal(targetSelect.tag, 'select');
+    assert.equal(targetSelect.children.length, 1, 'only one dialect option exposed');
+    assert.equal(targetSelect.value, 'alphafold3');
+});
+
+test('explicit multi-target list exposes the requested dialects', () => {
+    const { state, registry } = loadPluginBundle();
+    const definition = registry.definitions['jaag-builder'];
+
+    const target = fakeNode('div');
+    const context = { setGeneratedFile() {}, generatedFile() { return null; }, form: { name: 'alphafold3', params: [] }, changed() {} };
+    definition.mount(target, { options: { targets: ['alphafold3', 'opendde'] } }, context);
+
+    const targetSelect = target.children[0];
+    assert.equal(targetSelect.children.length, 2, 'both requested dialects exposed');
+});
+
+test('malformed covalent bond lines are reported instead of silently dropped', () => {
+    const { state, registry } = loadPluginBundle();
+    const definition = registry.definitions['jaag-builder'];
+
+    const target = fakeNode('div');
+    const context = { setGeneratedFile(file) { context.generatedFile = file; }, generatedFile() { return null; }, form: { name: 'alphafold3', params: [] }, changed() {} };
+    const instance = definition.mount(target, { options: { target: 'alphafold3' } }, context);
+    instance.destroy(); // clear seeded generatedFile
+
+    const bondsArea = walk(target, node => node.tag === 'textarea' && node.placeholder === 'one bond per line: A:2:ND2 G:1:C1');
+    assert.ok(bondsArea, 'bonds textarea is present');
+    bondsArea.value = 'A:1:N not-an-endpoint';
+    const errors = instance.validate();
+    assert.ok(errors.some(message => /Invalid covalent bond/.test(message)), 'malformed bond must be rejected');
+    assert.equal(context.generatedFile, null, 'invalid builder must not synthesize a file');
+});
+
+test('switching an entity row to ligand reveals the ligand input and runs validation', () => {
+    const { state, registry } = loadPluginBundle();
+    const definition = registry.definitions['jaag-builder'];
+
+    const target = fakeNode('div');
+    const context = { setGeneratedFile() {}, generatedFile() { return null; }, form: { name: 'alphafold3', params: [] }, changed() {} };
+    definition.mount(target, { options: { target: 'alphafold3' } }, context);
+
+    // The entity type selector has four options (protein/dna/rna/ligand), while
+    // the target selector has exactly one option in single-target mode.
+    const typeSelect = walk(target, node => node.tag === 'select' && node.children.length === ENTITY_TYPE_COUNT);
+    assert.ok(typeSelect, 'entity type selector is present');
+    const ligandInput = walk(target, node => node.tag === 'input' && node.placeholder === 'CCD codes (NAG,FUC) or SMILES');
+    const sequenceArea = walk(target, node => node.tag === 'textarea' && node.placeholder === 'sequence');
+    assert.ok(ligandInput && sequenceArea, 'entity fields are present');
+
+    typeSelect.value = 'ligand';
+    typeSelect.dispatchEvent('change');
+
+    assert.equal(ligandInput.style.display, '', 'ligand input must be visible for ligand rows');
+    assert.equal(sequenceArea.style.display, 'none', 'sequence area must hide for ligand rows');
 });
