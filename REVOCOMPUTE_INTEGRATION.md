@@ -274,14 +274,14 @@ This runs every `tests/*.test.mjs` file, including:
 
 ## 7. Publication record
 
-_This section is filled in by the JAAG pull-request step; see the git
-branch/commit and pull-request status below._
+- Branch: `feat/jaag-core-revocompute-reuse`
+- Commit: `021e0dae3066369e2dad5b8a199796904ffbc30d`
+  (`git log --oneline -1` → `021e0da Extract jaag-core and canonical REvoCompute builder plugin`)
+- Pull request: https://github.com/YaoYinYing/JAAG/pull/6
+  (head `feat/jaag-core-revocompute-reuse` → base `main` on `YaoYinYing/JAAG`)
 
-<!-- PUBLICATION_RECORD -->
-- Branch: `<pending>`
-- Commit: `<pending>`
-- Pull request: `<pending>`
-<!-- /PUBLICATION_RECORD -->
+The pull request was opened with `gh pr create -R YaoYinYing/JAAG --base main
+--head feat/jaag-core-revocompute-reuse ...` on 2026-09-08.
 
 ### Manual commands if automation is unavailable
 
