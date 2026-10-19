@@ -643,6 +643,10 @@ function isRosettaFold3LigandPath(path) {
     return /\.(?:sdf|cif|pdb|bcif)(?:\.(?:gz|gzip|zst))?$/i.test(String(path).trim());
 }
 
+function isRosettaFold3MsaPath(path) {
+    return /\.(?:a3m|afa|fasta)(?:\.(?:gz|zst))?$/i.test(String(path).trim());
+}
+
 export function serializeRosettaFold3(document) {
     const errors = [];
     const warnings = [];
@@ -698,6 +702,11 @@ export function serializeRosettaFold3(document) {
         const unpairedMsa = entity.msa?.unpaired;
         if (unpairedMsa?.source === 'inline') {
             errors.push(`RoseTTAFold3 requires an MSA file path for ${entity.chainIds.join(', ')}; inline MSA data is unsupported`);
+        } else if (unpairedMsa?.source === 'path' && !isRosettaFold3MsaPath(unpairedMsa.value)) {
+            errors.push(
+                `RoseTTAFold3 MSA paths must be A3M or FASTA files (.a3m, .afa, or .fasta, `
+                + `optionally compressed with .gz or .zst); got ${unpairedMsa.value}`
+            );
         }
         if (entity.msa?.paired) {
             warnings.push(`RoseTTAFold3 does not accept pre-paired MSAs; the paired MSA for ${entity.chainIds.join(', ')} was ignored because RF3 pairs MSAs on the fly`);

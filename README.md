@@ -247,10 +247,11 @@ RF3's parenthesized CCD notation for modifications, and converts
 ```
 
 SMILES and SDF/CIF ligands map to `smiles` and `path`. Unpaired protein/RNA MSA
-paths map to `msa_path`; RF3 does not accept inline MSAs, so JAAG reports those
-as errors. Paired MSAs are ignored with a warning because RF3 pairs sequences on
-the fly. AlphaFold template objects are not RF3 templates; use a CIF/PDB
-component with RF3's `template_selection` option instead.
+paths map to `msa_path`; paths must use `.a3m`, `.afa`, or `.fasta`, optionally
+compressed with `.gz` or `.zst`. RF3 does not accept inline MSAs, so JAAG
+reports those as errors. Paired MSAs are ignored with a warning because RF3
+pairs sequences on the fly. AlphaFold template objects are not RF3 templates;
+use a CIF/PDB component with RF3's `template_selection` option instead.
 
 RF3 accepts a single CCD through `ccd_code` and multi-residue CCD chains through
 a non-polymer sequence array. JAAG serializes a multi-CCD glycan such as

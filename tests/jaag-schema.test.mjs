@@ -374,6 +374,24 @@ test('serializes RoseTTAFold3 multi-CCD glycan chains and their bonds', () => {
     ]);
 });
 
+test('validates RoseTTAFold3 MSA file extensions and compression suffixes', () => {
+    const source = {
+        name: 'rf3_msa_formats', modelSeeds: [1], dialect: 'alphafold3', version: 4,
+        sequences: [
+            { protein: { id: 'A', sequence: 'AC', unpairedMsaPath: '/msa/a.a3m.gz' } },
+            { protein: { id: 'B', sequence: 'AC', unpairedMsaPath: '/msa/b.afa.zst' } },
+            { protein: { id: 'C', sequence: 'AC', unpairedMsaPath: '/msa/c.fasta' } },
+            { protein: { id: 'D', sequence: 'AC', unpairedMsaPath: '/msa/d.aln' } }
+        ]
+    };
+
+    const result = serialize(fromAlphaFold3(source), 'rosettafold3');
+
+    assert.equal(result.errors.length, 1);
+    assert.match(result.errors[0], /MSA paths must be A3M or FASTA files/);
+    assert.match(result.errors[0], /\/msa\/d\.aln/);
+});
+
 test('RoseTTAFold3 reports unsupported MSA, template, custom CCD, and bond inputs', () => {
     const source = {
         name: 'rf3_limits', modelSeeds: [1], dialect: 'alphafold3', version: 4,
