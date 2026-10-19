@@ -676,6 +676,7 @@ AlphaFold3Generator.prototype.downloadJSON = function() {
             const defaultNames = {
                 alphafold3: 'alphafold3_input',
                 opendde: 'opendde_input',
+                rosettafold3: 'rosettafold3_input',
                 protenix: 'protenix_input',
                 openfold3: 'openfold3_input',
                 chai: 'chai_input',
@@ -684,6 +685,7 @@ AlphaFold3Generator.prototype.downloadJSON = function() {
             const extensions = {
                 alphafold3: 'json',
                 opendde: 'json',
+                rosettafold3: 'json',
                 protenix: 'json',
                 openfold3: 'json',
                 chai: 'fasta',

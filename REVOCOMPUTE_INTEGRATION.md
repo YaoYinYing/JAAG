@@ -30,6 +30,7 @@ Supported targets:
 | `opendde`    | OpenDDE server-style job list      |
 | `protenix`   | Protenix server-style job list     |
 | `openfold3`  | OpenFold 3 `queries` JSON object   |
+| `rosettafold3` | RoseTTAFold3 JSON object         |
 | `chai`       | Chai-1 FASTA string                |
 | `boltz`      | Boltz YAML string                  |
 

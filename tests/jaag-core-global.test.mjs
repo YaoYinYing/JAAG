@@ -53,6 +53,7 @@ test('global bundle builds and serializes every target', () => {
         opendde: { kind: 'array' },
         protenix: { kind: 'array' },
         openfold3: { kind: 'object' },
+        rosettafold3: { kind: 'object' },
         chai: { kind: 'string' },
         boltz: { kind: 'string' }
     };
@@ -90,6 +91,10 @@ test('global bundle reports per-target covalent-bond restrictions', () => {
 
     const openfold3 = core.build(model, 'openfold3');
     assert.ok(Array.from(openfold3.errors).some(message => /bondedAtomPairs/.test(message)));
+
+    const rosettafold3 = core.build(model, 'rosettafold3');
+    assert.equal(Array.from(rosettafold3.errors).length, 0, 'RoseTTAFold3 supports RF3 bond strings');
+    assert.equal(JSON.stringify(rosettafold3.data.bonds), JSON.stringify([['A/ALA/1/N', 'L/NAG/1/C1']]));
 
     const chai = core.build(model, 'chai');
     assert.ok(Array.from(chai.errors).some(message => /bondedAtomPairs/.test(message)));

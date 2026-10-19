@@ -133,7 +133,7 @@
         : allowedTargets[0];
 
       var targetSelect = select(allowedTargets.map(function (name) {
-        return { value: name, label: name === "opendde" ? "OpenDDE" : name === "protenix" ? "Protenix" : name === "chai" ? "Chai-1" : name === "boltz" ? "Boltz" : "AlphaFold 3" };
+        return { value: name, label: name === "opendde" ? "OpenDDE" : name === "protenix" ? "Protenix" : name === "openfold3" ? "OpenFold 3" : name === "rosettafold3" ? "RoseTTAFold3" : name === "chai" ? "Chai-1" : name === "boltz" ? "Boltz" : "AlphaFold 3" };
       }), targetName);
 
       var nameInput = textInput("", "job name");

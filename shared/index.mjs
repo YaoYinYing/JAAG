@@ -1,6 +1,6 @@
 // Public entry point for the JAAG core: a dependency-free, DOM-free package
 // that builds neutral jaag-superset documents and serializes them to AlphaFold
-// 3, OpenDDE, Protenix, OpenFold 3, Chai-1, and Boltz input formats.
+// 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3, Chai-1, and Boltz input formats.
 
 export {
     ADAPTERS,

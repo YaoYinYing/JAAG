@@ -37,6 +37,11 @@ function serverCCD(value) {
     return `CCD_${normalizeCCD(value)}`;
 }
 
+function rosettaFoldCCD(value) {
+    const normalized = normalizeCCD(value);
+    return JAAG_CCD_ALIASES[normalized] || normalized;
+}
+
 function findUserCCDIds(inline) {
     if (!inline) return [];
     return [...String(inline).matchAll(/^data_([^\s#]+)/gm)].map(match => match[1]);
@@ -572,6 +577,182 @@ export function serializeOpenFold3(document) {
     return { data: { queries }, errors, warnings };
 }
 
+// --- RoseTTAFold3 (RF3) adapter ----------------------------------------------
+
+const ROSETTAFOLD3_CHAIN_TYPES = {
+    protein: 'polypeptide(L)',
+    dna: 'polydeoxyribonucleotide',
+    rna: 'polyribonucleotide'
+};
+
+const ROSETTAFOLD3_RESIDUE_NAMES = {
+    protein: {
+        A: 'ALA', R: 'ARG', N: 'ASN', D: 'ASP', C: 'CYS',
+        Q: 'GLN', E: 'GLU', G: 'GLY', H: 'HIS', I: 'ILE',
+        L: 'LEU', K: 'LYS', M: 'MET', F: 'PHE', P: 'PRO',
+        S: 'SER', T: 'THR', W: 'TRP', Y: 'TYR', V: 'VAL',
+        U: 'SEC', O: 'PYL', B: 'ASX', Z: 'GLX', X: 'UNK'
+    },
+    dna: { A: 'DA', C: 'DC', G: 'DG', T: 'DT', N: 'DN' },
+    rna: { A: 'A', C: 'C', G: 'G', U: 'U', N: 'N' }
+};
+
+function rosettaFoldSequenceTokens(sequence) {
+    return String(sequence).toUpperCase().match(/\([^)]*\)|./g) || [];
+}
+
+function rosettaFoldModificationMap(entity, errors) {
+    const tokens = rosettaFoldSequenceTokens(entity.sequence);
+    const modifications = new Map();
+    for (const modification of entity.modifications || []) {
+        const position = modification.position;
+        const label = `${entity.chainIds.join(', ')} modification at position ${position}`;
+        if (position > tokens.length) {
+            errors.push(`RoseTTAFold3 ${label} exceeds the sequence length (${tokens.length})`);
+        } else if (modifications.has(position)) {
+            errors.push(`RoseTTAFold3 ${label} is defined more than once`);
+        } else {
+            modifications.set(position, rosettaFoldCCD(modification.ccdCode));
+        }
+    }
+    return { tokens, modifications };
+}
+
+function rosettaFoldModifiedSequence(tokens, modifications) {
+    return tokens.map((token, index) => {
+        const modification = modifications.get(index + 1);
+        return modification ? `(${modification})` : token;
+    }).join('');
+}
+
+function rosettaFoldResidueName(entity, position, tokens, modifications) {
+    if (entity.type === 'ligand') {
+        if (entity.ligand.source !== 'ccd') return null;
+        const ccdCode = entity.ligand.ccdCodes[position - 1];
+        return ccdCode ? rosettaFoldCCD(ccdCode) : null;
+    }
+    const modifiedName = modifications.get(position);
+    if (modifiedName) return modifiedName;
+    const token = tokens[position - 1];
+    if (!token) return null;
+    if (/^\([^)]*\)$/.test(token)) return rosettaFoldCCD(token.slice(1, -1));
+    return ROSETTAFOLD3_RESIDUE_NAMES[entity.type]?.[token] || null;
+}
+
+function isRosettaFold3LigandPath(path) {
+    return /\.(?:sdf|cif|pdb|bcif)(?:\.(?:gz|gzip|zst))?$/i.test(String(path).trim());
+}
+
+export function serializeRosettaFold3(document) {
+    const errors = [];
+    const warnings = [];
+    const components = [];
+    const chainLookup = new Map();
+    const custom = document.job.customComponents || {};
+
+    if (custom.path) {
+        errors.push('RoseTTAFold3 does not support AlphaFold userCCDPath inputs');
+    }
+    const userCCDIds = findUserCCDIds(custom.inline);
+    const unsupported = userCCDIds.filter(id => !JAAG_CCD_ALIASES[id]);
+    if (custom.inline && userCCDIds.length === 0) {
+        errors.push('RoseTTAFold3 does not support custom inline userCCD data');
+    } else if (unsupported.length > 0) {
+        errors.push(`RoseTTAFold3 does not support custom userCCD components: ${unsupported.join(', ')}`);
+    } else if (userCCDIds.length > 0) {
+        warnings.push('JAAG built-in CCD components were mapped to their standard CCD IDs for RoseTTAFold3');
+    }
+
+    document.job.entities.forEach(entity => {
+        if (entity.description) {
+            warnings.push(`Sequence descriptions are not part of the RoseTTAFold3 JSON input and were omitted for ${entity.chainIds.join(', ')}`);
+        }
+        if (entity.templates?.length) {
+            errors.push(`RoseTTAFold3 expects CIF/PDB path components with template_selection, not AlphaFold template objects, for ${entity.chainIds.join(', ')}`);
+        }
+
+        if (entity.type === 'ligand') {
+            for (const chainId of entity.chainIds) {
+                const component = { chain_id: chainId };
+                if (entity.ligand.source === 'ccd' && entity.ligand.ccdCodes.length === 1) {
+                    component.ccd_code = rosettaFoldCCD(entity.ligand.ccdCodes[0]);
+                } else if (entity.ligand.source === 'ccd') {
+                    component.seq = entity.ligand.ccdCodes.map(code => `(${rosettaFoldCCD(code)})`);
+                    component.chain_type = 'non-polymer';
+                } else if (entity.ligand.source === 'smiles') {
+                    component.smiles = entity.ligand.smiles;
+                } else if (entity.ligand.source === 'file') {
+                    component.path = entity.ligand.path;
+                    if (!isRosettaFold3LigandPath(entity.ligand.path)) {
+                        errors.push(`RoseTTAFold3 ligand paths must be SDF, CIF, PDB, or BcIF files; got ${entity.ligand.path}`);
+                    }
+                }
+                components.push(component);
+                chainLookup.set(chainId, { entity, tokens: [], modifications: new Map() });
+            }
+            return;
+        }
+
+        const { tokens, modifications } = rosettaFoldModificationMap(entity, errors);
+        const modifiedSequence = rosettaFoldModifiedSequence(tokens, modifications);
+        const unpairedMsa = entity.msa?.unpaired;
+        if (unpairedMsa?.source === 'inline') {
+            errors.push(`RoseTTAFold3 requires an MSA file path for ${entity.chainIds.join(', ')}; inline MSA data is unsupported`);
+        }
+        if (entity.msa?.paired) {
+            warnings.push(`RoseTTAFold3 does not accept pre-paired MSAs; the paired MSA for ${entity.chainIds.join(', ')} was ignored because RF3 pairs MSAs on the fly`);
+        }
+
+        for (const chainId of entity.chainIds) {
+            const component = {
+                seq: modifiedSequence,
+                chain_id: chainId,
+                chain_type: ROSETTAFOLD3_CHAIN_TYPES[entity.type]
+            };
+            if (unpairedMsa?.source === 'path') component.msa_path = unpairedMsa.value;
+            components.push(component);
+            chainLookup.set(chainId, { entity, tokens, modifications });
+        }
+    });
+
+    const bonds = (document.job.bonds || []).map((bond, index) => {
+        const left = chainLookup.get(bond.left.chainId);
+        const right = chainLookup.get(bond.right.chainId);
+        const label = `RoseTTAFold3 bond ${index + 1}`;
+        if (!left || !right) {
+            errors.push(`${label} references an unknown chain ID`);
+            return null;
+        }
+        const leftName = rosettaFoldResidueName(
+            left.entity, bond.left.position, left.tokens, left.modifications
+        );
+        const rightName = rosettaFoldResidueName(
+            right.entity, bond.right.position, right.tokens, right.modifications
+        );
+        if (!leftName || !rightName) {
+            const chains = [!leftName && bond.left.chainId, !rightName && bond.right.chainId].filter(Boolean);
+            errors.push(
+                `${label} cannot infer residue names for chain ${chains.join(', ')}. `
+                + 'RF3 bonds require CCD-backed ligands or a residue-aware CIF component'
+            );
+            return null;
+        }
+        return [
+            `${bond.left.chainId}/${leftName}/${bond.left.position}/${bond.left.atom}`,
+            `${bond.right.chainId}/${rightName}/${bond.right.position}/${bond.right.atom}`
+        ];
+    }).filter(Boolean);
+
+    const data = {
+        name: document.job.name,
+        components
+    };
+    if (bonds.length > 0) data.bonds = bonds;
+
+    warnings.push('RoseTTAFold3 reads model seeds from the rf3 fold CLI (seed=...), not from the input JSON');
+    return { data, errors: [...new Set(errors)], warnings: [...new Set(warnings)] };
+}
+
 // --- Chai-1 (FASTA) adapter ---------------------------------------------------
 
 export function serializeChaiFasta(document) {
@@ -754,6 +935,10 @@ export const ADAPTERS = Object.freeze({
         name: 'OpenFold 3',
         serialize: serializeOpenFold3
     }),
+    rosettafold3: Object.freeze({
+        name: 'RoseTTAFold3',
+        serialize: serializeRosettaFold3
+    }),
     chai: Object.freeze({
         name: 'Chai-1',
         serialize: serializeChaiFasta
@@ -785,6 +970,12 @@ export const TARGETS = Object.freeze({
     }),
     openfold3: Object.freeze({
         name: 'OpenFold 3',
+        usesServerJSON: true,
+        outputFormat: 'json',
+        capabilities: Object.freeze({ inlineMsa: false, msaPaths: true, templates: false, customComponents: false })
+    }),
+    rosettafold3: Object.freeze({
+        name: 'RoseTTAFold3',
         usesServerJSON: true,
         outputFormat: 'json',
         capabilities: Object.freeze({ inlineMsa: false, msaPaths: true, templates: false, customComponents: false })

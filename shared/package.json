@@ -1,7 +1,7 @@
 {
   "name": "jaag-core",
   "version": "1.0.0",
-  "description": "Dependency-free, DOM-free core of JAAG: builds neutral jaag-superset documents and serializes them to AlphaFold 3, OpenDDE, Protenix, OpenFold 3, Chai-1, and Boltz input formats.",
+  "description": "Dependency-free, DOM-free core of JAAG: builds neutral jaag-superset documents and serializes them to AlphaFold 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3, Chai-1, and Boltz input formats.",
   "type": "module",
   "main": "./index.mjs",
   "module": "./index.mjs",

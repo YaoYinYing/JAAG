@@ -22,4 +22,7 @@ test('loads JSON action prototypes before creating the browser app', () => {
     assert.equal(vm.runInContext('typeof AlphaFold3Generator.prototype.copyJSON', context), 'function');
     assert.equal(vm.runInContext('typeof AlphaFold3Generator.prototype.downloadJSON', context), 'function');
     assert.ok(indexSource.indexOf('js/app.js') < indexSource.indexOf('js/json-generator.js'));
+    assert.match(indexSource, /<option value="rosettafold3">RoseTTAFold3<\/option>/);
+    assert.match(generatorSource, /rosettafold3:\s*'rosettafold3_input'/);
+    assert.match(generatorSource, /rosettafold3:\s*'json'/);
 });
