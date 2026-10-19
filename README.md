@@ -1,6 +1,6 @@
-# JAAG: a JSON input file Assembler for AlphaFold 3, OpenDDE, Protenix, OpenFold 3, Chai-1, and Boltz with Glycan integration
+# JAAG: a JSON input file Assembler for AlphaFold 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3, Chai-1, and Boltz with Glycan integration
 
-JAAG is a comprehensive web-based tool for generating input files for the major open AlphaFold-3-family structure prediction models — AlphaFold 3, OpenDDE, Protenix, OpenFold 3, Chai-1, and Boltz — with advanced glycan structure support and integrated SugarDrawer functionality.
+JAAG is a comprehensive web-based tool for generating input files for the major open AlphaFold-3-family structure prediction models — AlphaFold 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3, Chai-1, and Boltz — with advanced glycan structure support and integrated SugarDrawer functionality.
 Web tool link: https://biofgreat.org/JAAG/  
 Full tutorial PDF: https://www.biofgreat.org/JAAG/Tutorial.pdf  
 Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.pptx
@@ -32,29 +32,32 @@ Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.ppt
 ### Unified input and share links
 
 JAAG first represents every job as a versioned, target-neutral `jaag-superset`
-document. Explicit AlphaFold 3, OpenDDE, Protenix, OpenFold 3, Chai-1, and Boltz
+document. Explicit AlphaFold 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3,
+Chai-1, and Boltz
 adapters then serialize that document to the selected output format. This keeps
 form collection, common validation, and target conversion separate.
 
 #### JAAG target compatibility
 
-The output "format" column notes the payload type each target requests: OpenDDE,
-Protenix and OpenFold 3 take JSON files, Chai-1 takes a FASTA file, and Boltz
-takes a YAML file.
+The output "format" column notes the payload type each target requests. OpenDDE,
+Protenix, OpenFold 3, and RoseTTAFold3 take JSON files; Chai-1 takes a FASTA
+file; and Boltz takes a YAML file.
 
-| Input behavior | AlphaFold 3 standalone | OpenDDE / Protenix | OpenFold 3 | Chai-1 | Boltz |
-| --- | --- | --- | --- | --- | --- |
-| Output format | JSON | JSON job list | JSON `queries` | FASTA | YAML |
-| Top-level JSON | One object with `dialect` and `version` | Job list | `{ "queries": { "<name>": { "chains": [...] } } }` | n/a | n/a |
-| Entity keys | `protein`, `dna`, `rna`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` | `molecule_type` + `chain_ids` | `protein\|rna\|dna\|ligand` FASTA headers | `protein`, `dna`, `rna`, `ligand` |
-| Multimer IDs | String or ID array | ID array plus `count` | String or ID array | n/a | ID array |
-| MSA paths | Protein: paired/unpaired; RNA: unpaired | Protein: paired/unpaired; RNA: unpaired | `main_msa_file_paths` / `paired_msa_file_paths` | Not encoded (CLI `--msa-directory`) | Protein `msa:` |
-| Inline MSA | Protein: paired/unpaired; RNA: unpaired | Not supported | Not supported | Not supported | Not supported |
-| AlphaFold template objects | Supported | Not supported | Not supported (native `template_cif_paths`) | Not supported (CLI m8 templates) | Not supported (native `templates` section) |
-| Custom `userCCD` | Supported | Only JAAG built-in aliases | Not supported | Not supported | Not supported |
-| Covalent bonds | `bondedAtomPairs` with chain IDs | `covalent_bonds` with entity/copy indices | Not supported | Not supported (constraints TSV) | `constraints.bond` |
-| Sequence descriptions | Preserved | Omitted with a warning | n/a | n/a | n/a |
-| Ligand file paths | Not supported | Serialized as `FILE_<path>` | Not supported | Not supported | Not supported |
+| Input behavior | AlphaFold 3 standalone | OpenDDE / Protenix | OpenFold 3 | RoseTTAFold3 | Chai-1 | Boltz |
+| --- | --- | --- | --- | --- | --- | --- |
+| Output format | JSON | JSON job list | JSON `queries` | JSON object | FASTA | YAML |
+| Top-level JSON | One object with `dialect` and `version` | Job list | `{ "queries": { "<name>": { "chains": [...] } } }` | `{ "name", "components", "bonds"? }` | n/a | n/a |
+| Entity keys | `protein`, `dna`, `rna`, `ligand` | `proteinChain`, `dnaSequence`, `rnaSequence`, `ligand` | `molecule_type` + `chain_ids` | `seq` + `chain_type`, `ccd_code`, `smiles`, or `path` | `protein\|rna\|dna\|ligand` FASTA headers | `protein`, `dna`, `rna`, `ligand` |
+| Multimer IDs | String or ID array | ID array plus `count` | String or ID array | One component per chain ID | Not encoded | ID array |
+| MSA paths | Protein: paired/unpaired; RNA: unpaired | Protein: paired/unpaired; RNA: unpaired | `main_msa_file_paths` / `paired_msa_file_paths` | Unpaired protein/RNA `msa_path` | Not encoded (CLI `--msa-directory`) | Protein `msa:` |
+| Inline MSA | Protein: paired/unpaired; RNA: unpaired | Not supported | Not supported | Not supported | Not supported | Not supported |
+| Paired MSA | Supported | Supported | Supported for multimers | Ignored with a warning (RF3 pairs on the fly) | Not supported | Not supported |
+| AlphaFold template objects | Supported | Not supported | Not supported (native `template_cif_paths`) | Not supported (CIF/PDB components + `template_selection`) | Not supported (CLI m8 templates) | Not supported (native `templates` section) |
+| Custom `userCCD` | Supported | Only JAAG built-in aliases | Not supported | Only JAAG built-in aliases | Not supported | Not supported |
+| Covalent bonds | `bondedAtomPairs` with chain IDs | `covalent_bonds` with entity/copy indices | Not supported | `bonds` as `chain/RES/id/atom` pairs | Not supported (constraints TSV) | `constraints.bond` |
+| Sequence descriptions | Preserved | Omitted with a warning | n/a | Omitted with a warning | n/a | n/a |
+| Ligand file paths | Not supported | Serialized as `FILE_<path>` | Not supported | Supported as `path` | Not supported | Not supported |
+| Multi-CCD ligand chains | Supported | Joined CCD string | CCD code array | Non-polymer `seq` array | Rejected | Joined CCD string |
 
 File-backed ligands can be serialized through the neutral schema and `/fetch`,
 but the current browser form cannot restore them from a share link. JAAG rejects
@@ -90,7 +93,7 @@ non-success response and never carry an attachment header.
 ### Glycan-related AF3 Model Interpretation: 
 Chin Huang, Natarajan Kannan, Kelley W Moremen, Modeling glycans with AlphaFold 3: capabilities, caveats, and limitations, Glycobiology, Volume 35, Issue 10, October 2025, cwaf048, https://doi.org/10.1093/glycob/cwaf048
 ## Quick Start (through server: https://biofgreat.org/JAAG/)
-1. **Basic Setup**: Enter a job name and choose AlphaFold 3 standalone, OpenDDE, Protenix, OpenFold 3, Chai-1, or Boltz
+1. **Basic Setup**: Enter a job name and choose AlphaFold 3 standalone, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3, Chai-1, or Boltz
 2. **Add Sequences**: Use the sequence buttons to add proteins, ligands, RNA, or DNA
 3. **Draw Glycans**: Click the pencil icon to open SugarDrawer for glycan structure drawing  
    **Alternatives**: Copy and paste GlycoCT from a glycoinformatics database
@@ -214,6 +217,58 @@ Run the downloaded file with a standalone OpenFold 3 installation:
 openfold3-predict -i input.json -o ./output --use_msa_server
 ```
 
+## RoseTTAFold3 compatibility
+
+RoseTTAFold3 (RF3), available in
+[RosettaCommons/foundry](https://github.com/RosettaCommons/foundry), accepts a
+JSON job with a `components` list. JAAG writes one component per chain ID, uses
+RF3's parenthesized CCD notation for modifications, and converts
+`bondedAtomPairs` to RF3 bond strings:
+
+```json
+{
+  "name": "example_job",
+  "components": [
+    {
+      "seq": "(MSE)NSTK",
+      "chain_id": "A",
+      "chain_type": "polypeptide(L)",
+      "msa_path": "./msa/a.a3m"
+    },
+    {
+      "ccd_code": "NAG",
+      "chain_id": "G"
+    }
+  ],
+  "bonds": [
+    ["A/ASN/2/ND2", "G/NAG/1/C1"]
+  ]
+}
+```
+
+SMILES and SDF/CIF ligands map to `smiles` and `path`. Unpaired protein/RNA MSA
+paths map to `msa_path`; paths must use `.a3m`, `.afa`, or `.fasta`, optionally
+compressed with `.gz` or `.zst`. RF3 does not accept inline MSAs, so JAAG
+reports those as errors. Paired MSAs are ignored with a warning because RF3
+pairs sequences on the fly. AlphaFold template objects are not RF3 templates;
+use a CIF/PDB component with RF3's `template_selection` option instead.
+
+RF3 accepts a single CCD through `ccd_code` and multi-residue CCD chains through
+a non-polymer sequence array. JAAG serializes a multi-CCD glycan such as
+NAG-BMA-MAN as `"seq": ["(NAG)", "(BMA)", "(MAN)"]` with
+`"chain_type": "non-polymer"`; the parenthesized entries are RF3's generalized
+CCD sequence notation. Linkage bonds from JAAG's `bondedAtomPairs` are preserved
+as RF3 bond strings. Bonds to SMILES/file-backed ligands require residue names
+that RF3 derives from the supplied structure, so JAAG reports them rather than
+guessing.
+
+Model seeds are RF3 command-line options, not JSON fields. Pass a seed when
+launching the downloaded file:
+
+```bash
+rf3 fold inputs='jaag-rosettafold3.json' out_dir='./output' seed=42
+```
+
 ## Chai-1 compatibility
 
 Chai-1's `chai-lab fold` command reads sequences from a **FASTA** file rather
@@ -317,7 +372,7 @@ boltz predict input.yaml --use_msa_server
 
 ## Other Notes
 
-- **Validation Required**: Resolve JAAG validation errors before submitting JSON to AlphaFold 3, OpenDDE, or Protenix
+- **Validation Required**: Resolve JAAG validation errors before submitting an input file to any target
 - **Sequence Limits**: Be aware of AlphaFold 3 sequence length limitations (around 5000 tokens)
 - **Database Availability**: External database lookups depend on server availability
 - **Privacy**: Normal editing stays in the browser. Share links contain compressed input data in their URL; compression is not encryption, and the URL may appear in browser history or server logs. When using glycan lookup features, the app makes direct client-side requests to third-party APIs (e.g., GlyGen, GlyTouCan).

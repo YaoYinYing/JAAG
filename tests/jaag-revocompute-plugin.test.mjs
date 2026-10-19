@@ -159,6 +159,30 @@ test('jaag-builder targets opendde and synthesizes a server-style job list', asy
     assert.equal(generated[0].sequences[0].proteinChain.sequence, 'ACDEFGHIK');
 });
 
+test('jaag-builder targets RoseTTAFold3 and synthesizes RF3 components', async () => {
+    const { registry } = loadPluginBundle();
+    const definition = registry.definitions['jaag-builder'];
+
+    const target = fakeNode('div');
+    const context = {
+        generatedFile: null,
+        setGeneratedFile(file) { context.generatedFile = file; },
+        generatedFile() { return context.generatedFile; },
+        form: { name: 'rosettafold3', display_name: 'RoseTTAFold3', params: [] },
+        changed() {}
+    };
+
+    definition.mount(target, { options: { target: 'rosettafold3' } }, context);
+
+    assert.equal(target.children[0].children[0].textContent, 'RoseTTAFold3');
+    assert.equal(context.generatedFile.name, 'jaag-rosettafold3.json');
+    const generated = JSON.parse((await context.generatedFile.text()).trim());
+    assert.equal(generated.name, 'Untitled_Job');
+    assert.deepEqual(generated.components, [
+        { seq: 'ACDEFGHIK', chain_id: 'A', chain_type: 'polypeptide(L)' }
+    ]);
+});
+
 test('single-target runners expose only their configured dialect', () => {
     const { state, registry } = loadPluginBundle();
     const definition = registry.definitions['jaag-builder'];

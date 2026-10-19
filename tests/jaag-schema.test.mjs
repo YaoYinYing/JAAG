@@ -182,11 +182,15 @@ test('validates template contents and rejects mixed MSA source modes', () => {
 
 test('registers Chai, Boltz, and OpenFold 3 targets with output formats', () => {
     assert.equal(TARGETS.openfold3.outputFormat, 'json');
+    assert.equal(TARGETS.rosettafold3.outputFormat, 'json');
+    assert.equal(TARGETS.rosettafold3.capabilities.msaPaths, true);
+    assert.equal(TARGETS.rosettafold3.capabilities.inlineMsa, false);
     assert.equal(TARGETS.chai.outputFormat, 'fasta');
     assert.equal(TARGETS.boltz.outputFormat, 'yaml');
     assert.equal(ADAPTERS.chai.name, 'Chai-1');
     assert.equal(ADAPTERS.boltz.name, 'Boltz');
     assert.equal(ADAPTERS.openfold3.name, 'OpenFold 3');
+    assert.equal(ADAPTERS.rosettafold3.name, 'RoseTTAFold3');
 });
 
 test('serializes OpenFold 3 queries JSON with chains and non-canonical residues', () => {
@@ -274,4 +278,147 @@ test('OpenFold 3 reports native-only template and bond restrictions', () => {
     const result = serialize(document, 'openfold3');
     assert.match(result.errors.join('\n'), /not AlphaFold template objects/);
     assert.match(result.errors.join('\n'), /does not support AlphaFold bondedAtomPairs/);
+});
+
+test('serializes RoseTTAFold3 components, modifications, MSAs, and bonds', () => {
+    const source = {
+        name: 'rf3_complex', modelSeeds: [7], dialect: 'alphafold3', version: 4,
+        sequences: [
+            {
+                protein: {
+                    id: ['A', 'B'],
+                    sequence: 'MSETK',
+                    modifications: [{ ptmType: 'MSE', ptmPosition: 1 }],
+                    unpairedMsaPath: '/data/unpaired.a3m',
+                    pairedMsaPath: '/data/paired.a3m'
+                }
+            },
+            { ligand: { id: 'G', ccdCodes: ['NAG'] } }
+        ],
+        bondedAtomPairs: [[['B', 5, 'N'], ['G', 1, 'C1']]]
+    };
+
+    const result = serialize(fromAlphaFold3(source), 'rosettafold3');
+
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.data, {
+        name: 'rf3_complex',
+        components: [
+            { seq: '(MSE)SETK', chain_id: 'A', chain_type: 'polypeptide(L)', msa_path: '/data/unpaired.a3m' },
+            { seq: '(MSE)SETK', chain_id: 'B', chain_type: 'polypeptide(L)', msa_path: '/data/unpaired.a3m' },
+            { chain_id: 'G', ccd_code: 'NAG' }
+        ],
+        bonds: [['B/LYS/5/N', 'G/NAG/1/C1']]
+    });
+    assert.match(result.warnings.join('\n'), /pairs MSAs on the fly/);
+    assert.match(result.warnings.join('\n'), /seed=\.\.\./);
+});
+
+test('serializes RoseTTAFold3 nucleic acids, SMILES, file ligands, and built-in aliases', () => {
+    const source = {
+        name: 'rf3_types', modelSeeds: [1], dialect: 'alphafold3', version: 4,
+        sequences: [
+            { dna: { id: 'D', sequence: 'AT' } },
+            { rna: { id: 'R', sequence: 'AU', unpairedMsaPath: '/rna.a3m' } },
+            { ligand: { id: 'S', ccdCodes: ['SIA-2'] } },
+            { ligand: { id: 'L', smiles: 'CCO' } },
+            { ligand: { id: 'F', smiles: 'CCO' } }
+        ],
+        userCCD: 'data_SIA-2\n#\n_chem_comp.id SIA\n'
+    };
+    const document = fromAlphaFold3(source);
+    document.job.entities[4].ligand = { source: 'file', path: '/ligands/glycan.cif' };
+
+    const result = serialize(document, 'rosettafold3');
+
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.data.components, [
+        { seq: 'AT', chain_id: 'D', chain_type: 'polydeoxyribonucleotide' },
+        { seq: 'AU', chain_id: 'R', chain_type: 'polyribonucleotide', msa_path: '/rna.a3m' },
+        { chain_id: 'S', ccd_code: 'SIA' },
+        { chain_id: 'L', smiles: 'CCO' },
+        { chain_id: 'F', path: '/ligands/glycan.cif' }
+    ]);
+    assert.match(result.warnings.join('\n'), /built-in CCD components/);
+});
+
+test('serializes RoseTTAFold3 multi-CCD glycan chains and their bonds', () => {
+    const source = {
+        name: 'rf3_glycan', modelSeeds: [1], dialect: 'alphafold3', version: 4,
+        sequences: [
+            { protein: { id: 'A', sequence: 'GN' } },
+            { ligand: { id: 'G', ccdCodes: ['NAG', 'BMA', 'MAN'] } }
+        ],
+        bondedAtomPairs: [
+            [['A', 2, 'ND2'], ['G', 1, 'C1']],
+            [['G', 1, 'O4'], ['G', 2, 'C1']],
+            [['G', 2, 'O4'], ['G', 3, 'C1']]
+        ]
+    };
+
+    const result = serialize(fromAlphaFold3(source), 'rosettafold3');
+
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.data.components, [
+        { seq: 'GN', chain_id: 'A', chain_type: 'polypeptide(L)' },
+        {
+            seq: ['(NAG)', '(BMA)', '(MAN)'],
+            chain_id: 'G',
+            chain_type: 'non-polymer'
+        }
+    ]);
+    assert.deepEqual(result.data.bonds, [
+        ['A/ASN/2/ND2', 'G/NAG/1/C1'],
+        ['G/NAG/1/O4', 'G/BMA/2/C1'],
+        ['G/BMA/2/O4', 'G/MAN/3/C1']
+    ]);
+});
+
+test('validates RoseTTAFold3 MSA file extensions and compression suffixes', () => {
+    const source = {
+        name: 'rf3_msa_formats', modelSeeds: [1], dialect: 'alphafold3', version: 4,
+        sequences: [
+            { protein: { id: 'A', sequence: 'AC', unpairedMsaPath: '/msa/a.a3m.gz' } },
+            { protein: { id: 'B', sequence: 'AC', unpairedMsaPath: '/msa/b.afa.zst' } },
+            { protein: { id: 'C', sequence: 'AC', unpairedMsaPath: '/msa/c.fasta' } },
+            { protein: { id: 'D', sequence: 'AC', unpairedMsaPath: '/msa/d.aln' } }
+        ]
+    };
+
+    const result = serialize(fromAlphaFold3(source), 'rosettafold3');
+
+    assert.equal(result.errors.length, 1);
+    assert.match(result.errors[0], /MSA paths must be A3M or FASTA files/);
+    assert.match(result.errors[0], /\/msa\/d\.aln/);
+});
+
+test('RoseTTAFold3 reports unsupported MSA, template, custom CCD, and bond inputs', () => {
+    const source = {
+        name: 'rf3_limits', modelSeeds: [1], dialect: 'alphafold3', version: 4,
+        sequences: [
+            {
+                protein: {
+                    id: 'A',
+                    sequence: 'ACDE',
+                    unpairedMsa: '>query\nACDE',
+                    templates: [{ mmcifPath: '/template.cif', queryIndices: [0], templateIndices: [0] }]
+                }
+            },
+            { ligand: { id: 'L', smiles: 'CCO' } },
+            { ligand: { id: 'F', smiles: 'CC' } }
+        ],
+        bondedAtomPairs: [[['A', 1, 'N'], ['L', 1, 'C1']]],
+        userCCD: 'data_CUSTOM\n#\n_chem_comp.id CUSTOM\n'
+    };
+
+    const document = fromAlphaFold3(source);
+    document.job.entities[2].ligand = { source: 'file', path: '/ligands/unsupported.xyz' };
+    const result = serialize(document, 'rosettafold3');
+    const errors = result.errors.join('\n');
+
+    assert.match(errors, /inline MSA data is unsupported/);
+    assert.match(errors, /not AlphaFold template objects/);
+    assert.match(errors, /custom userCCD components: CUSTOM/);
+    assert.match(errors, /cannot infer residue names for chain L/);
+    assert.match(errors, /ligand paths must be SDF, CIF, PDB, or BcIF/);
 });

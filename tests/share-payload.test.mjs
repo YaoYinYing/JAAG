@@ -33,6 +33,38 @@ test('/fetch returns a downloadable target JSON document', async () => {
     assert.equal(data[0].sequences[0].proteinChain.sequence, 'ACDE');
 });
 
+test('/fetch returns RoseTTAFold3 JSON and a matching filename', async () => {
+    const source = fromAlphaFold3({
+        name: 'rf3 share', modelSeeds: [1], dialect: 'alphafold3', version: 4,
+        sequences: [{
+            protein: {
+                id: 'A',
+                sequence: 'MSET',
+                modifications: [{ ptmType: 'MSE', ptmPosition: 1 }],
+                unpairedMsaPath: '/data/unpaired.a3m'
+            }
+        }]
+    }, { target: 'rosettafold3' });
+
+    const response = await handleFetch(
+        new Request(`https://jaag.test/fetch?p=${encodeSharePayload(source, deflateSync)}`),
+        inflate
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'application/json; charset=utf-8');
+    assert.match(response.headers.get('content-disposition'), /attachment; filename="rf3_share.json"/);
+    assert.deepEqual(await response.json(), {
+        name: 'rf3 share',
+        components: [{
+            seq: '(MSE)SET',
+            chain_id: 'A',
+            chain_type: 'polypeptide(L)',
+            msa_path: '/data/unpaired.a3m'
+        }]
+    });
+});
+
 test('/fetch rejects malformed and semantically invalid payloads without attachment headers', async () => {
     const malformed = await handleFetch(new Request('https://jaag.test/fetch?p=not-json'), inflate);
     assert.equal(malformed.status, 400);

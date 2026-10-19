@@ -63,6 +63,7 @@ class AlphaFold3Generator {
             name: target === 'protenix' ? 'Protenix'
                 : target === 'opendde' ? 'OpenDDE'
                 : target === 'openfold3' ? 'OpenFold 3'
+                : target === 'rosettafold3' ? 'RoseTTAFold3'
                 : target === 'chai' ? 'Chai-1'
                 : target === 'boltz' ? 'Boltz'
                 : 'AlphaFold 3',
@@ -92,6 +93,7 @@ class AlphaFold3Generator {
                 opendde: 'OpenDDE job-list JSON. File-path MSAs are supported; inline MSA, AlphaFold template objects, and custom userCCD are not.',
                 protenix: 'Protenix job-list JSON. File-path MSAs are supported; inline MSA, AlphaFold template objects, and custom userCCD are not.',
                 openfold3: 'OpenFold 3 queries JSON. Precomputed-MSA paths, SMILES/CCD ligands, and non-canonical residues are supported.',
+                rosettafold3: 'RoseTTAFold3 JSON. One component per chain; protein/DNA/RNA modifications, CCD glycan chains, SMILES, file paths, MSA paths, and bonds are supported.',
                 chai: 'Chai-1 FASTA. Proteins/DNA/RNA and SMILES ligands; MSAs and templates are passed via CLI flags, not the FASTA.',
                 boltz: 'Boltz YAML input. Protein/DNA/RNA, SMILES/CCD ligands, MSA paths, modifications, and covalent bonds are supported.'
             }[this.getOutputTarget()];
