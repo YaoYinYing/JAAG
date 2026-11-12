@@ -55,9 +55,6 @@
     async function restoreDocument(inputDocument) {
         const validation = window.JAAGCore.validateSuperset(inputDocument);
         if (!validation.valid) throw new Error(validation.errors.join('; '));
-        if (inputDocument.job.entities.some(entity => entity.type === 'ligand' && entity.ligand?.source === 'file')) {
-            throw new Error('Shared JAAG forms do not support ligand file paths');
-        }
         setValue('jobName', inputDocument.job.name);
         setValue('modelSeedsMultiple', inputDocument.job.seeds.join(', '));
         setValue('version', inputDocument.options?.alphafoldVersion || 4);
@@ -74,32 +71,42 @@
         if (bondsContainer) bondsContainer.innerHTML = '';
 
         for (const entity of inputDocument.job.entities) {
-            window.addSequence(entity.type);
+            const formType = entity.type === 'ion' ? 'ligand' : entity.type;
+            window.addSequence(formType);
             const sequence = window.app.sequences.at(-1);
             const sequenceId = sequence.id;
             setValue(`${sequenceId}_id`, entity.chainIds[0]);
             setValue(`${sequenceId}_count`, entity.chainIds.length);
             setValue(`${sequenceId}_sequence`, entity.sequence);
             setValue(`${sequenceId}_description`, entity.description || '');
-            if (entity.type === 'ligand') {
-                const ligandType = entity.ligand.source === 'smiles' ? 'smiles' : 'ccd';
+            if (entity.type === 'ion') {
+                setValue(`${sequenceId}_ligandType`, 'ion');
+                if (typeof toggleLigandInputs === 'function') toggleLigandInputs(sequenceId);
+                setValue(`${sequenceId}_ionCode`, entity.ionCode);
+            } else if (entity.type === 'ligand') {
+                const ligandType = entity.ligand.source === 'file' ? 'file'
+                    : entity.ligand.source === 'smiles' ? 'smiles' : 'ccd';
                 setValue(`${sequenceId}_ligandType`, ligandType);
                 if (typeof toggleLigandInputs === 'function') toggleLigandInputs(sequenceId);
                 setValue(`${sequenceId}_ccdCodes`, entity.ligand.ccdCodes?.join(',') || '');
                 setValue(`${sequenceId}_smiles`, entity.ligand.smiles || '');
+                setValue(`${sequenceId}_filePath`, entity.ligand.path || '');
             } else {
                 setMsa(sequenceId, entity.msa);
                 await setModifications(sequenceId, entity);
-                if (entity.type === 'protein') await setTemplates(sequenceId, entity.templates);
+                if (entity.type === 'protein') {
+                    await setTemplates(sequenceId, entity.templates);
+                    setValue(`${sequenceId}_templatesPath`, entity.templatesPath || '');
+                }
             }
-            const updateMultimer = entity.type === 'ligand' ? window.updateLigandMultimer : window.updateMultimerChains;
+            const updateMultimer = formType === 'ligand' ? window.updateLigandMultimer : window.updateMultimerChains;
             if (typeof updateMultimer === 'function') updateMultimer(sequenceId);
             if (entity.chainIds.length > 1) {
                 sequence.multimerChainIds = [...entity.chainIds];
                 const chainList = document.getElementById(`${sequenceId}_chainList`);
                 if (chainList) chainList.textContent = entity.chainIds.join(', ');
             }
-            await window.updateSequenceData?.(sequenceId, entity.type);
+            await window.updateSequenceData?.(sequenceId, formType);
         }
 
         for (const bond of inputDocument.job.bonds || []) {

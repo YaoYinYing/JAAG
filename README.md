@@ -1,6 +1,6 @@
-# JAAG: a JSON input file Assembler for AlphaFold 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3, Chai-1, and Boltz with Glycan integration
+# JAAG: input-file assembly for AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2
 
-JAAG is a comprehensive web-based tool for generating input files for the major open AlphaFold-3-family structure prediction models — AlphaFold 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3, Chai-1, and Boltz — with advanced glycan structure support and integrated SugarDrawer functionality.
+JAAG is a comprehensive web-based tool for generating input files for open structure prediction tools including AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2, with advanced glycan structure support and integrated SugarDrawer functionality.
 Web tool link: https://biofgreat.org/JAAG/  
 Full tutorial PDF: https://www.biofgreat.org/JAAG/Tutorial.pdf  
 Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.pptx
@@ -33,15 +33,17 @@ Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.ppt
 
 JAAG first represents every job as a versioned, target-neutral `jaag-superset`
 document. Explicit AlphaFold 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3,
-Chai-1, and Boltz
+Chai-1, Boltz, BioEmu2, and Mol-1
 adapters then serialize that document to the selected output format. This keeps
 form collection, common validation, and target conversion separate.
 
 #### JAAG target compatibility
 
-The output "format" column notes the payload type each target requests. OpenDDE,
-Protenix, OpenFold 3, and RoseTTAFold3 take JSON files; Chai-1 takes a FASTA
-file; and Boltz takes a YAML file.
+The output "format" column notes the payload type each prediction target requests.
+BioEmu2's composition-only System YAML and Mol-1's server-style JSON are
+summarized separately below. OpenDDE, Protenix, Mol-1, OpenFold 3, and
+RoseTTAFold3 take JSON files; Chai-1 takes a FASTA file; Boltz takes a
+prediction YAML file; BioEmu2 takes a molecular-system YAML file.
 
 | Input behavior | AlphaFold 3 standalone | OpenDDE / Protenix | OpenFold 3 | RoseTTAFold3 | Chai-1 | Boltz |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -59,9 +61,62 @@ file; and Boltz takes a YAML file.
 | Ligand file paths | Not supported | Serialized as `FILE_<path>` | Not supported | Supported as `path` | Not supported | Not supported |
 | Multi-CCD ligand chains | Supported | Joined CCD string | CCD code array | Non-polymer `seq` array | Rejected | Joined CCD string |
 
-File-backed ligands can be serialized through the neutral schema and `/fetch`,
-but the current browser form cannot restore them from a share link. JAAG rejects
-that restoration explicitly instead of changing the ligand type.
+#### Mol-1 JSON
+
+Mol-1 accepts a top-level list of jobs and uses the same server-style entity
+fields as OpenDDE and Protenix. JAAG maps protein, DNA, RNA, CCD/SMILES/file
+ligands, modifications, MSA paths, and covalent bonds. Use the **Ion** button
+for an ion entity; ion export is supported for Mol-1 only. Multi-CCD glycan
+ligands are preserved as `CCD_...` ligand strings with their internal bonds.
+See the [Mol-1 input format](https://github.com/molence/Mol-1/blob/main/docs/infer_json_format.md).
+
+AlphaFold 3 and Mol-1 use different template and custom-component fields.
+JAAG collects AlphaFold template objects and inline/path `userCCD` definitions
+for AlphaFold 3. For Mol-1, JAAG provides a separate protein `templatesPath`
+field for A3M, HHR, or JSON files; Mol-1 uses it with `--use_template true`.
+The ligand form also accepts Mol-1 `FILE_<path>` inputs for PDB, SDF, MOL, and
+MOL2 files. These paths must be available to the Mol-1 runner. AlphaFold
+template objects and AF3 `userCCD` fields are not copied into Mol-1 JSON;
+provide a custom ligand in one of Mol-1's supported ligand forms instead.
+Mol-1 reads `modelSeeds` from JSON only when invoked with
+`--use_seeds_in_json true`.
+
+Run a downloaded file with Mol-1:
+
+```bash
+mol pred -i mol1_input.json -o ./output
+```
+
+#### BioEmu2 System YAML
+
+BioEmu2 consumes a `System` description, not a prediction job file. JAAG writes
+`entities` with `entity_type` and `asym_ids`, plus explicit `bonds` when
+present. Protein, DNA, RNA, single-CCD and SMILES ligands, polymer
+modifications, and CCD glycan chains are mapped to BioEmu2's documented YAML
+fields. Multi-CCD glycan chains are written as `branched` entities with
+`mon_seq`; JAAG requires the chain's monomers to be connected by explicit
+bonds. See the [BioEmu2 system format](https://github.com/microsoft/bioemu2/blob/main/docs/system.md).
+
+BioEmu2 chain IDs must be at most four characters. JAAG shortens longer IDs and
+writes `asym_id_to_author_id` so bond references use the shortened IDs while
+the original names remain available. Job names and model seeds are not part of
+the System format and are omitted. MSA files and AlphaFold template objects
+are reported as unsupported for this export because they are configured
+outside the System YAML. The current form does not collect BioEmu2 contact
+conditioning yet. File-backed ligands and custom `userCCD` components are
+rejected; BioEmu2 must be able to resolve each CCD code itself.
+
+The downloaded file can be loaded as a `System`:
+
+```python
+from pathlib import Path
+from bioemu2 import System
+
+system = System.from_yaml(Path("bioemu2_system.yaml"))
+```
+
+File-backed ligands and Mol-1 template paths are part of the shareable neutral
+input and restore into their corresponding form fields.
 
 The **Share** button stores that neutral input in the `p` query parameter as
 pako/DEFLATE-compressed JSON encoded with URL-safe base64. Opening the link
@@ -93,11 +148,11 @@ non-success response and never carry an attachment header.
 ### Glycan-related AF3 Model Interpretation: 
 Chin Huang, Natarajan Kannan, Kelley W Moremen, Modeling glycans with AlphaFold 3: capabilities, caveats, and limitations, Glycobiology, Volume 35, Issue 10, October 2025, cwaf048, https://doi.org/10.1093/glycob/cwaf048
 ## Quick Start (through server: https://biofgreat.org/JAAG/)
-1. **Basic Setup**: Enter a job name and choose AlphaFold 3 standalone, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3, Chai-1, or Boltz
+1. **Basic Setup**: Enter a job name and choose an output target, including AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, or BioEmu2
 2. **Add Sequences**: Use the sequence buttons to add proteins, ligands, RNA, or DNA
 3. **Draw Glycans**: Click the pencil icon to open SugarDrawer for glycan structure drawing  
    **Alternatives**: Copy and paste GlycoCT from a glycoinformatics database
-4. **Generate JSON**: JSON is automatically generated in real-time
+4. **Generate input**: The selected target's input is generated in real time
 5. **Export**: Copy or download the input file for the selected target
 
 ## Quick Start (through download)

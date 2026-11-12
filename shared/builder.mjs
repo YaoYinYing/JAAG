@@ -7,7 +7,7 @@
 
 import { SCHEMA_NAME, SCHEMA_VERSION, fromAlphaFold3, serialize, validateSuperset } from './jaag-schema.mjs';
 
-const MODEL_ENTITY_TYPES = new Set(['protein', 'dna', 'rna', 'ligand']);
+const MODEL_ENTITY_TYPES = new Set(['protein', 'dna', 'rna', 'ligand', 'ion']);
 const ALPHAFOLD_VERSIONS = new Set([1, 2, 3, 4]);
 
 function deepClone(value) {
@@ -100,6 +100,7 @@ function normalizeEntity(raw, index) {
     if (Array.isArray(raw.templates) && raw.templates.length > 0) {
         entity.templates = deepClone(raw.templates);
     }
+    if (raw.templatesPath !== undefined) entity.templatesPath = String(raw.templatesPath);
 
     if (type === 'ligand') {
         const ligand = raw.ligand && typeof raw.ligand === 'object' ? raw.ligand : {};
@@ -118,6 +119,10 @@ function normalizeEntity(raw, index) {
         } else {
             return { error: `Entity ${index + 1} requires a ligand source (ccd, smiles, or file)` };
         }
+    } else if (type === 'ion') {
+        const ionCode = String(raw.ionCode ?? raw.ion ?? '').trim().toUpperCase();
+        if (!ionCode) return { error: `Entity ${index + 1} requires an ion CCD code` };
+        entity.ionCode = ionCode;
     } else {
         if (typeof raw.sequence !== 'string') {
             return { error: `Entity ${index + 1} requires sequence data` };
@@ -244,6 +249,11 @@ export function buildAlphaFold3Job(model) {
         throw error;
     }
     const document = built.document;
+    if (document.job.entities.some(entity => entity.type === 'ion'
+        || entity.templatesPath
+        || (entity.type === 'ligand' && entity.ligand.source === 'file'))) {
+        throw new Error('Cannot build AlphaFold 3 job: this input contains Mol-1-only ion, template-path, or file-ligand fields');
+    }
     const version = document.options.alphafoldVersion;
 
     const sequences = document.job.entities.map(entity => {

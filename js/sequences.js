@@ -109,6 +109,16 @@ function addSequence(type) {
     }, 150); // Small delay to ensure DOM is fully rendered
 }
 
+function addIonSequence() {
+    addSequence('ligand');
+    const sequence = window.app?.sequences.at(-1);
+    if (!sequence) return;
+    const inputType = document.getElementById(`${sequence.id}_ligandType`);
+    if (inputType) inputType.value = 'ion';
+    toggleLigandInputs(sequence.id);
+    updateSequenceDataSync(sequence.id, 'ligand');
+}
+
 function createProteinSequenceHTML(sequenceId) {
     return `
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -363,7 +373,7 @@ function createProteinSequenceHTML(sequenceId) {
                                     aria-expanded="false"
                                     aria-controls="${sequenceId}_templatesCollapse"
                                     style="text-decoration: none; color: inherit;">
-                                <label class="form-label mb-0">Structural Templates</label>
+                                <label class="form-label mb-0">AlphaFold 3 Template Objects</label>
                                 <span id="${sequenceId}_templatesBadge" class="badge bg-secondary ms-2" style="display: none;">0</span>
                                 <i class="fas fa-chevron-down ms-2"></i>
                             </button>
@@ -372,11 +382,16 @@ function createProteinSequenceHTML(sequenceId) {
                             </button>
                         </div>
                         <div class="collapse" id="${sequenceId}_templatesCollapse">
-                            <small class="text-muted d-block mb-2">Define structural templates to guide protein folding</small>
+                            <small class="text-muted d-block mb-2">These mmCIF template objects are for AlphaFold 3. Mol-1 uses the separate templatesPath field below.</small>
                             <div id="${sequenceId}_templates" class="template-container">
                                 <small class="text-muted">No templates defined</small>
                             </div>
                         </div>
+                    </div>
+                    <div class="mb-3" id="${sequenceId}_mol1TemplatesPathSection" style="display:none;">
+                        <label class="form-label" for="${sequenceId}_templatesPath">Mol-1 Template Path</label>
+                        <input type="text" class="form-control form-control-sm" id="${sequenceId}_templatesPath" placeholder="/path/to/templates.a3m">
+                        <small class="text-muted">A3M, HHR, or JSON; run Mol-1 with --use_template true to use this file</small>
                     </div>
                     
                 </div>
@@ -652,7 +667,9 @@ function createLigandSequenceHTML(sequenceId) {
                     <select class="form-select" id="${sequenceId}_ligandType" onchange="toggleLigandInputs('${sequenceId}')">
                         <option value="glycan" selected>Glycan</option>
                         <option value="ccd">CCD Codes</option>
+                        <option value="ion">Ion (Mol-1)</option>
                         <option value="smiles">SMILES</option>
+                        <option value="file">File Path (Mol-1)</option>
                     </select>
                 </div>
                 <div class="col-md-6">
@@ -671,6 +688,15 @@ function createLigandSequenceHTML(sequenceId) {
                     <div id="${sequenceId}_ccdInput" style="display:none;">
                         <label class="form-label">CCD Codes*</label>
                         <input type="text" class="form-control" id="${sequenceId}_ccdCodes" placeholder="ATP,MG (comma-separated)" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()">
+                    </div>
+                    <div id="${sequenceId}_ionInput" style="display:none;">
+                        <label class="form-label">Ion CCD Code*</label>
+                        <input type="text" class="form-control" id="${sequenceId}_ionCode" placeholder="MG" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase(); updateSequenceDataSync('${sequenceId}', 'ligand');">
+                    </div>
+                    <div id="${sequenceId}_fileInput" style="display:none;">
+                        <label class="form-label">Mol-1 Ligand File Path*</label>
+                        <input type="text" class="form-control" id="${sequenceId}_filePath" placeholder="/path/to/ligand.sdf" oninput="updateSequenceDataSync('${sequenceId}', 'ligand');">
+                        <small class="text-muted">PDB, SDF, MOL, or MOL2 file available to the Mol-1 runner</small>
                     </div>
                     <div id="${sequenceId}_smilesInput" style="display:none;">
                         <label class="form-label">SMILES String*</label>
@@ -831,6 +857,7 @@ function buildProteinData(sequenceId, id, sequence) {
         if (templates.length > 0) {
             proteinData.protein.templates = templates;
         }
+        addMol1TemplatesPath(sequenceId, proteinData.protein);
 
         // Add glycosylation sites (applies to all chains in the multimer)
         const manualSites = collectGlycosylationSites(sequenceId);
@@ -873,6 +900,7 @@ function buildProteinData(sequenceId, id, sequence) {
         if (templates.length > 0) {
             data.protein.templates = templates;
         }
+        addMol1TemplatesPath(sequenceId, data.protein);
         
         // Store glycosylation sites for later processing during JSON generation (internal only)
         const manualSites = collectGlycosylationSites(sequenceId);
@@ -890,6 +918,11 @@ function buildProteinData(sequenceId, id, sequence) {
         
         return data;
     }
+}
+
+function addMol1TemplatesPath(sequenceId, proteinData) {
+    const path = document.getElementById(`${sequenceId}_templatesPath`)?.value?.trim();
+    if (path) proteinData.templatesPath = path;
 }
 
 function buildRNAData(sequenceId, id, sequence) {
@@ -1029,6 +1062,16 @@ async function addLigandTypeData(sequenceId, ligandObj) {
                 ligandObj.ccdCodes = await applyLigandCCDReplacements(rawCodes);
             }
             break;
+        case 'ion': {
+            const ionCode = document.getElementById(`${sequenceId}_ionCode`)?.value?.trim().toUpperCase();
+            if (ionCode) ligandObj.ionCode = ionCode;
+            break;
+        }
+        case 'file': {
+            const path = document.getElementById(`${sequenceId}_filePath`)?.value?.trim();
+            if (path) ligandObj.path = path;
+            break;
+        }
         case 'smiles':
             const smilesElement = document.getElementById(`${sequenceId}_smiles`);
             if (smilesElement && smilesElement.value) {
@@ -1370,10 +1413,14 @@ function toggleLigandInputs(sequenceId) {
     const ccdInput = document.getElementById(`${sequenceId}_ccdInput`);
     const smilesInput = document.getElementById(`${sequenceId}_smilesInput`);
     const glycanInput = document.getElementById(`${sequenceId}_glycanInput`);
+    const ionInput = document.getElementById(`${sequenceId}_ionInput`);
+    const fileInput = document.getElementById(`${sequenceId}_fileInput`);
     
     if (ccdInput) ccdInput.style.display = 'none';
     if (smilesInput) smilesInput.style.display = 'none';
     if (glycanInput) glycanInput.style.display = 'none';
+    if (ionInput) ionInput.style.display = 'none';
+    if (fileInput) fileInput.style.display = 'none';
     
     // Show selected input type
     const targetInput = document.getElementById(`${sequenceId}_${type}Input`);

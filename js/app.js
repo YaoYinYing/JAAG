@@ -62,17 +62,20 @@ class AlphaFold3Generator {
             target,
             name: target === 'protenix' ? 'Protenix'
                 : target === 'opendde' ? 'OpenDDE'
+                : target === 'mol1' ? 'Mol-1'
                 : target === 'openfold3' ? 'OpenFold 3'
                 : target === 'rosettafold3' ? 'RoseTTAFold3'
                 : target === 'chai' ? 'Chai-1'
                 : target === 'boltz' ? 'Boltz'
+                : target === 'bioemu2' ? 'BioEmu2'
                 : 'AlphaFold 3',
             usesServerJSON: target !== 'alphafold3',
-            outputFormat: target === 'chai' ? 'fasta' : target === 'boltz' ? 'yaml' : 'json'
+            outputFormat: target === 'chai' ? 'fasta' : ['boltz', 'bioemu2'].includes(target) ? 'yaml' : 'json'
         };
     }
 
     updateOutputTargetUI() {
+        const outputTarget = this.getOutputTarget();
         const targetConfig = this.getOutputTargetConfig();
         const usesServerJSON = targetConfig.usesServerJSON;
         const versionSettings = document.getElementById('alphaFoldVersionSettings');
@@ -80,6 +83,10 @@ class AlphaFold3Generator {
         const userCCDSection = document.getElementById('userCCDSection');
         const help = document.getElementById('outputTargetHelp');
         const outputLabel = document.getElementById('jsonOutputLabel');
+
+        document.querySelectorAll('[id$="_mol1TemplatesPathSection"]').forEach(section => {
+            section.style.display = outputTarget === 'mol1' ? '' : 'none';
+        });
 
         versionSettings?.classList.toggle('d-none', usesServerJSON);
         userCCDSection?.classList.toggle('d-none', usesServerJSON);
@@ -92,10 +99,12 @@ class AlphaFold3Generator {
                 alphafold3: 'AlphaFold 3 dialect, version 1–4',
                 opendde: 'OpenDDE job-list JSON. File-path MSAs are supported; inline MSA, AlphaFold template objects, and custom userCCD are not.',
                 protenix: 'Protenix job-list JSON. File-path MSAs are supported; inline MSA, AlphaFold template objects, and custom userCCD are not.',
+                mol1: 'Mol-1 job-list JSON. Protein/DNA/RNA, CCD/SMILES/file ligands, ions, modifications, MSA paths, native A3M/HHR/JSON templatesPath, and covalent bonds are supported. Run with --use_template true to use templates.',
                 openfold3: 'OpenFold 3 queries JSON. Precomputed-MSA paths, SMILES/CCD ligands, and non-canonical residues are supported.',
                 rosettafold3: 'RoseTTAFold3 JSON. One component per chain; protein/DNA/RNA modifications, CCD glycan chains, SMILES, file paths, MSA paths, and bonds are supported.',
                 chai: 'Chai-1 FASTA. Proteins/DNA/RNA and SMILES ligands; MSAs and templates are passed via CLI flags, not the FASTA.',
-                boltz: 'Boltz YAML input. Protein/DNA/RNA, SMILES/CCD ligands, MSA paths, modifications, and covalent bonds are supported.'
+                boltz: 'Boltz YAML input. Protein/DNA/RNA, SMILES/CCD ligands, MSA paths, modifications, and covalent bonds are supported.',
+                bioemu2: 'BioEmu2 System YAML. Proteins, nucleic acids, CCD/SMILES ligands, branched CCD glycans, and explicit covalent bonds are supported. MSA is configured separately; contacts are not collected by this form.'
             }[this.getOutputTarget()];
             help.textContent = helpText || `${targetConfig.name} output`;
         }
@@ -149,7 +158,7 @@ class AlphaFold3Generator {
             this.lastValidation = { valid: false, errors: [error.message], warnings: [] };
             const outputElement = document.getElementById('jsonOutput');
             if (outputElement) outputElement.textContent = `Error: ${error.message}`;
-            this.showError('JSON Generation Error: ' + error.message);
+            this.showError('Input Generation Error: ' + error.message);
         }
     }
 

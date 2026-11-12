@@ -296,7 +296,7 @@ AlphaFold3Generator.prototype.validateSequenceData = function(sequenceData) {
             
             
             // Only set default empty array if truly no data exists
-            if (!seqInfo.ccdCodes && !seqInfo.smiles) {
+            if (!seqInfo.ccdCodes && !seqInfo.smiles && !seqInfo.path && !seqInfo.ionCode) {
                 seqInfo.ccdCodes = []; // Default empty array
             }
             break;
@@ -566,7 +566,7 @@ AlphaFold3Generator.prototype.updateValidationStatus = function(statusElement, e
     if (errors.length === 0 && warnings.length === 0) {
         icon = 'fas fa-check-circle text-success';
         className = 'text-success small';
-        message = `Valid ${targetName} JSON`;
+        message = `Valid ${targetName} input`;
     } else if (errors.length === 0) {
         icon = 'fas fa-exclamation-triangle text-warning';
         className = 'text-warning small';
@@ -604,26 +604,26 @@ AlphaFold3Generator.prototype.formatJSONWithHighlighting = function(jsonData) {
 };
 
 /**
- * Copy JSON with improved feedback
+ * Copy the generated target input with feedback
  */
 AlphaFold3Generator.prototype.copyJSON = function() {
     const jsonOutput = document.getElementById('jsonOutput');
     const jsonText = jsonOutput.textContent || jsonOutput.innerText;
 
     if (!this.lastValidation?.valid) {
-        this.showError('Resolve JSON validation errors before copying');
+        this.showError('Resolve input validation errors before copying');
         return;
     }
     
     if (jsonText && jsonText !== 'Click "Generate" to create AlphaFold3 JSON' && !jsonText.startsWith('Error:')) {
         navigator.clipboard.writeText(jsonText).then(() => {
-            this.showSuccess('JSON copied to clipboard!');
+            this.showSuccess('Input copied to clipboard!');
         }).catch(() => {
             // Fallback for older browsers
             this.fallbackCopyToClipboard(jsonText);
         });
     } else {
-        this.showError('No valid JSON to copy');
+        this.showError('No valid input to copy');
     }
 };
 
@@ -644,12 +644,12 @@ AlphaFold3Generator.prototype.fallbackCopyToClipboard = function(text) {
     try {
         const successful = document.execCommand('copy');
         if (successful) {
-            this.showSuccess('JSON copied to clipboard!');
+            this.showSuccess('Input copied to clipboard!');
         } else {
-            this.showError('Failed to copy JSON');
+            this.showError('Failed to copy input');
         }
     } catch (err) {
-        this.showError('Failed to copy JSON');
+        this.showError('Failed to copy input');
     }
 
     document.body.removeChild(textArea);
@@ -663,7 +663,7 @@ AlphaFold3Generator.prototype.downloadJSON = function() {
     const jsonText = jsonOutput.textContent || jsonOutput.innerText;
 
     if (!this.lastValidation?.valid) {
-        this.showError('Resolve JSON validation errors before downloading');
+        this.showError('Resolve input validation errors before downloading');
         return;
     }
     
@@ -676,20 +676,24 @@ AlphaFold3Generator.prototype.downloadJSON = function() {
             const defaultNames = {
                 alphafold3: 'alphafold3_input',
                 opendde: 'opendde_input',
+                mol1: 'mol1_input',
                 rosettafold3: 'rosettafold3_input',
                 protenix: 'protenix_input',
                 openfold3: 'openfold3_input',
                 chai: 'chai_input',
-                boltz: 'boltz_input'
+                boltz: 'boltz_input',
+                bioemu2: 'bioemu2_system'
             };
             const extensions = {
                 alphafold3: 'json',
                 opendde: 'json',
+                mol1: 'json',
                 rosettafold3: 'json',
                 protenix: 'json',
                 openfold3: 'json',
                 chai: 'fasta',
-                boltz: 'yaml'
+                boltz: 'yaml',
+                bioemu2: 'yaml'
             };
             const defaultName = defaultNames[this.lastOutputTarget] || defaultNames.alphafold3;
             const jobName = document.getElementById('jobName').value || defaultName;
@@ -706,9 +710,9 @@ AlphaFold3Generator.prototype.downloadJSON = function() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            this.showSuccess(`JSON downloaded as ${filename}`);
+            this.showSuccess(`Input downloaded as ${filename}`);
         } catch (error) {
-            this.showError('Invalid JSON format - cannot download');
+            this.showError('Could not download this input');
         }
     } else {
         this.showError('No valid JSON to download');

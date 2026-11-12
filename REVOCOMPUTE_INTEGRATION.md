@@ -29,10 +29,12 @@ Supported targets:
 | `alphafold3` | AlphaFold 3 JSON job object        |
 | `opendde`    | OpenDDE server-style job list      |
 | `protenix`   | Protenix server-style job list     |
+| `mol1`       | Mol-1 server-style job list        |
 | `openfold3`  | OpenFold 3 `queries` JSON object   |
 | `rosettafold3` | RoseTTAFold3 JSON object         |
 | `chai`       | Chai-1 FASTA string                |
 | `boltz`      | Boltz YAML string                  |
+| `bioemu2`    | BioEmu2 System YAML                |
 
 Package layout:
 
