@@ -10,7 +10,7 @@
   var core = global.JAAGCore;
   if (!core) throw new Error("JAAG core (global.JAAGCore) must be loaded before the jaag-builder plugin");
 
-  var ENTITY_TYPES = ["protein", "dna", "rna", "ligand"];
+  var ENTITY_TYPES = ["protein", "dna", "rna", "ligand", "ion"];
 
   function element(tag, className, text) {
     var node = document.createElement(tag);
@@ -133,7 +133,7 @@
         : allowedTargets[0];
 
       var targetSelect = select(allowedTargets.map(function (name) {
-        return { value: name, label: name === "opendde" ? "OpenDDE" : name === "protenix" ? "Protenix" : name === "openfold3" ? "OpenFold 3" : name === "rosettafold3" ? "RoseTTAFold3" : name === "chai" ? "Chai-1" : name === "boltz" ? "Boltz" : "AlphaFold 3" };
+        return { value: name, label: name === "opendde" ? "OpenDDE" : name === "protenix" ? "Protenix" : name === "mol1" ? "Mol-1" : name === "openfold3" ? "OpenFold 3" : name === "rosettafold3" ? "RoseTTAFold3" : name === "chai" ? "Chai-1" : name === "boltz" ? "Boltz" : name === "bioemu2" ? "BioEmu2" : "AlphaFold 3" };
       }), targetName);
 
       var nameInput = textInput("", "job name");
@@ -149,29 +149,32 @@
         var typeSelect = select(ENTITY_TYPES.map(function (type) { return { value: type, label: type }; }), (initial && initial.type) || "protein");
         var chainInput = textInput(chainIdsText(initial && initial.chainIds), "chain IDs, comma separated");
         var sequenceArea = textArea((initial && initial.sequence) || "", "sequence");
-        var ligandInput = textInput((initial && initial.ligand && (initial.ligand.smiles || initial.ligand.ccdCodes)) || "", "CCD codes (NAG,FUC) or SMILES");
+        var ligandInput = textInput((initial && (initial.ionCode || (initial.ligand && (initial.ligand.path ? "FILE_" + initial.ligand.path : initial.ligand.smiles || initial.ligand.ccdCodes)))) || "", "CCD codes, SMILES, FILE_<path>, or ion code (MG)");
         var modificationsInput = textInput(stringifyModifications(initial && initial.modifications), "modifications: position:CCD");
         var msaInput = textInput(initial && initial.msa && initial.msa.unpaired && initial.msa.unpaired.value || "", "/path/to/unpaired.a3m");
+        var templatesPathInput = textInput((initial && initial.templatesPath) || "", "/path/to/templates.a3m");
         var remove = element("button", "btn btn-soft", "Remove"); remove.type = "button";
 
         row.appendChild(typeSelect);
         row.appendChild(chainInput);
         row.appendChild(labelled(sequenceArea, "Sequence"));
-        row.appendChild(labelled(ligandInput, "Ligand (CCD codes or SMILES)"));
+        row.appendChild(labelled(ligandInput, "Ligand (CCD/SMILES/FILE_) or ion CCD code"));
         row.appendChild(labelled(modificationsInput, "Modifications"));
         row.appendChild(labelled(msaInput, "Unpaired MSA path"));
+        row.appendChild(labelled(templatesPathInput, "Mol-1 templatesPath (A3M/HHR/JSON)"));
         row.appendChild(remove);
         entityList.appendChild(row);
 
-        var record = { row: row, typeSelect: typeSelect, chainInput: chainInput, sequenceArea: sequenceArea, ligandInput: ligandInput, modificationsInput: modificationsInput, msaInput: msaInput, remove: remove };
+        var record = { row: row, typeSelect: typeSelect, chainInput: chainInput, sequenceArea: sequenceArea, ligandInput: ligandInput, modificationsInput: modificationsInput, msaInput: msaInput, templatesPathInput: templatesPathInput, remove: remove };
         entityRows.push(record);
 
         function syncVisibility() {
-          var isLigand = typeSelect.value === "ligand";
+          var isLigand = typeSelect.value === "ligand" || typeSelect.value === "ion";
           sequenceArea.style.display = isLigand ? "none" : "";
           ligandInput.style.display = isLigand ? "" : "none";
           modificationsInput.style.display = isLigand ? "none" : "";
           msaInput.style.display = typeSelect.value === "rna" || typeSelect.value === "protein" ? "" : "none";
+          templatesPathInput.style.display = targetSelect.value === "mol1" && typeSelect.value === "protein" ? "" : "none";
         }
         ["input", "change"].forEach(function (eventName) {
           typeSelect.addEventListener(eventName, function () { syncVisibility(); refresh(); });
@@ -180,6 +183,7 @@
           ligandInput.addEventListener(eventName, refresh);
           modificationsInput.addEventListener(eventName, refresh);
           msaInput.addEventListener(eventName, refresh);
+          templatesPathInput.addEventListener(eventName, refresh);
         });
         remove.addEventListener("click", function () {
           entityRows.splice(entityRows.indexOf(record), 1);
@@ -212,7 +216,12 @@
       target.appendChild(error);
 
       ["input", "change"].forEach(function (eventName) {
-        targetSelect.addEventListener(eventName, refresh);
+        targetSelect.addEventListener(eventName, function () {
+          entityRows.forEach(function (record) {
+            record.templatesPathInput.style.display = targetSelect.value === "mol1" && record.typeSelect.value === "protein" ? "" : "none";
+          });
+          refresh();
+        });
         nameInput.addEventListener(eventName, refresh);
         seedsInput.addEventListener(eventName, refresh);
         bondsArea.addEventListener(eventName, refresh);
@@ -225,11 +234,15 @@
           var chainIds = record.chainInput.value.split(",").map(function (value) { return value.trim(); }).filter(Boolean);
           var parsedModifications = parseModifications(record.modificationsInput.value);
           if (parsedModifications.errors.length) lastParseFieldErrors.push.apply(lastParseFieldErrors, parsedModifications.errors);
-          var entity = { type: type, chainIds: chainIds.length ? chainIds : (type === "ligand" ? "L" : "A") };
+          var entity = { type: type, chainIds: chainIds.length ? chainIds : (type === "ligand" || type === "ion" ? "L" : "A") };
 
-          if (type === "ligand") {
+          if (type === "ion") {
+            entity.ionCode = record.ligandInput.value.trim();
+          } else if (type === "ligand") {
             var ligandText = record.ligandInput.value.trim();
-            if (/^[A-Za-z0-9,]+$/.test(ligandText)) {
+            if (/^FILE_/i.test(ligandText)) {
+              entity.ligand = { source: "file", path: ligandText.slice(5).trim() };
+            } else if (/^[A-Za-z0-9,]+$/.test(ligandText)) {
               entity.ligand = { source: "ccd", ccdCodes: ligandText.split(",").map(function (code) { return code.trim(); }).filter(Boolean) };
             } else {
               entity.ligand = { source: "smiles", smiles: ligandText };
@@ -239,6 +252,8 @@
             if (parsedModifications.modifications.length) entity.modifications = parsedModifications.modifications;
             var msaPath = record.msaInput.value.trim();
             if (msaPath) entity.msa = { unpaired: { source: "path", value: msaPath } };
+            var templatesPath = record.templatesPathInput.value.trim();
+            if (targetSelect.value === "mol1" && type === "protein" && templatesPath) entity.templatesPath = templatesPath;
           }
           return entity;
         });

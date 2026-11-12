@@ -13,7 +13,7 @@
         <div class="row">
             <div class="col-12">
                 <h1 class="text-center mb-4">
-                    JAAG: <small class="fs-2">a JSON input file Assembler for AlphaFold 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3, Chai-1, and Boltz with Glycan integration</small>
+                    JAAG: <small class="fs-2">a JSON input file Assembler for AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2 with Glycan integration</small>
                 </h1>
             </div>
         </div>
@@ -38,7 +38,7 @@
                     <div class="collapse" id="descriptionCollapse">
                         <div class="card-body">
                         <p class="mb-3">
-                            JAAG is a web-based tool designed to assemble input files for standalone AlphaFold 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3, Chai-1, and Boltz.
+                            JAAG is a web-based tool designed to assemble input files for standalone AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2.
                         </p>
 
                         <h6>How to add glycans?</h6>
@@ -68,7 +68,7 @@
                         </ul>
                         
                         <div class="alert alert-info mt-3 mb-0" role="alert">
-                            <strong>Getting Started:</strong> Choose an output target, fill in the basic information, then add your sequences to generate a complete input JSON file.
+                            <strong>Getting Started:</strong> Choose an output target, fill in the basic information, then add your sequences to generate its input file.
                         </div>
                         </div>
                     </div>
@@ -92,10 +92,12 @@
                                     <option value="alphafold3" selected>AlphaFold 3 standalone</option>
                                     <option value="opendde">OpenDDE</option>
                                     <option value="protenix">Protenix</option>
+                                    <option value="mol1">Mol-1</option>
                                     <option value="openfold3">OpenFold 3</option>
                                     <option value="rosettafold3">RoseTTAFold3</option>
                                     <option value="chai">Chai-1</option>
                                     <option value="boltz">Boltz</option>
+                                    <option value="bioemu2">BioEmu2</option>
                                 </select>
                                 <small class="text-muted" id="outputTargetHelp">AlphaFold 3 dialect, version 1–4</small>
                             </div>
@@ -178,6 +180,9 @@
                             </button>
                             <button type="button" class="btn btn-outline-primary" onclick="addSequence('ligand')">
                                 <i class="fas fa-plus me-1"></i>Ligand
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="addIonSequence()">
+                                <i class="fas fa-plus me-1"></i>Ion
                             </button>
                             <button type="button" class="btn btn-outline-primary" onclick="addSequence('rna')">
                                 <i class="fas fa-plus me-1"></i>RNA
@@ -279,7 +284,7 @@
 
                 <div class="card sticky-top" style="top: 20px;">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span id="jsonOutputLabel">AlphaFold 3 JSON Output</span>
+                        <span id="jsonOutputLabel">AlphaFold 3 Input</span>
                         <div class="btn-group btn-group-sm">
                             <button type="button" class="btn btn-outline-primary" onclick="generateJSON()" style="display: none;">
                                 <i class="fas fa-sync me-1"></i>Generate
@@ -300,12 +305,12 @@
                     </div>
                     <div class="card-body">
                         <div id="jsonOutput" class="json-output p-3">
-                            <span class="text-muted">Add a sequence to create AlphaFold 3 JSON</span>
+                            <span class="text-muted">Add a sequence to create a target input file</span>
                         </div>
                     </div>
                     <div class="card-footer">
                         <div id="validationStatus" class="text-muted small">
-                            <i class="fa-regular fa-face-smile me-1"></i>Ready to generate JSON
+                            <i class="fa-regular fa-face-smile me-1"></i>Ready to generate input
                         </div>
                         <div class="text-muted mt-1" style="font-size: 0.72rem;">
                             <i class="fas fa-shield-halved me-1"></i>Share links embed the input data. Compression is not encryption.

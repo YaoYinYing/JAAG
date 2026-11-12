@@ -1,12 +1,13 @@
 export const SCHEMA_NAME = 'jaag-superset';
 export const SCHEMA_VERSION = 1;
 
-const ENTITY_TYPES = new Set(['protein', 'dna', 'rna', 'ligand']);
+const ENTITY_TYPES = new Set(['protein', 'dna', 'rna', 'ligand', 'ion']);
 const SERVER_ENTITY_TYPES = {
     protein: 'proteinChain',
     dna: 'dnaSequence',
     rna: 'rnaSequence',
-    ligand: 'ligand'
+    ligand: 'ligand',
+    ion: 'ion'
 };
 
 const JAAG_CCD_ALIASES = {
@@ -97,19 +98,26 @@ export function fromAlphaFold3(alphaFoldJob, options = {}) {
     }
 
     const entities = (alphaFoldJob.sequences || []).map((entry, index) => {
-        const type = Object.keys(entry || {})[0];
-        const source = entry?.[type] || {};
+        const sourceType = Object.keys(entry || {})[0];
+        const source = entry?.[sourceType] || {};
+        const type = sourceType === 'ion' || source.ionCode ? 'ion' : sourceType;
         const entity = {
             key: `entity-${index + 1}`,
             type,
             chainIds: asChainIds(source.id)
         };
 
-        if (type === 'ligand') {
-            if (Array.isArray(source.ccdCodes)) {
+        if (type === 'ion') {
+            entity.ionCode = String(source.ionCode || source.ion || '');
+        } else if (type === 'ligand') {
+            if (Array.isArray(source.ccdCodes) && source.ccdCodes.length > 0) {
                 entity.ligand = { source: 'ccd', ccdCodes: source.ccdCodes.map(String) };
             } else if (source.smiles) {
                 entity.ligand = { source: 'smiles', smiles: String(source.smiles) };
+            } else if (source.path) {
+                entity.ligand = { source: 'file', path: String(source.path) };
+            } else if (Array.isArray(source.ccdCodes)) {
+                entity.ligand = { source: 'ccd', ccdCodes: source.ccdCodes.map(String) };
             } else {
                 entity.ligand = { source: 'ccd', ccdCodes: [] };
             }
@@ -120,6 +128,9 @@ export function fromAlphaFold3(alphaFoldJob, options = {}) {
         if (source.description) entity.description = String(source.description);
         if (Array.isArray(source.modifications) && source.modifications.length > 0) {
             entity.modifications = source.modifications.map(item => neutralModification(type, item));
+        }
+        if (typeof source.templatesPath === 'string' && source.templatesPath.trim()) {
+            entity.templatesPath = source.templatesPath;
         }
 
         const msa = readMsa(source);
@@ -226,6 +237,14 @@ function validateTemplates(entity, errors, warnings, ref) {
     });
 }
 
+function validateTemplatesPath(entity, errors, ref) {
+    if (entity.templatesPath === undefined) return;
+    if (entity.type !== 'protein') errors.push(`${ref} templatesPath is supported only for proteins`);
+    if (typeof entity.templatesPath !== 'string' || !entity.templatesPath.trim()) {
+        errors.push(`${ref} templatesPath must be a non-empty string`);
+    }
+}
+
 function validateEndpoint(endpoint, errors, ref, chainIds) {
     if (!endpoint || typeof endpoint !== 'object') {
         errors.push(`${ref} must be an object`);
@@ -313,14 +332,18 @@ export function validateSuperset(document) {
                 && (typeof ligand.path !== 'string' || !ligand.path.trim())) {
                 errors.push(`${ref} requires a ligand file path`);
             }
+        } else if (entity.type === 'ion') {
+            if (typeof entity.ionCode !== 'string' || !entity.ionCode.trim()) {
+                errors.push(`${ref} requires an ion CCD code`);
+            }
         } else if (typeof entity.sequence !== 'string' || !entity.sequence.trim()) {
             errors.push(`${ref} requires sequence data`);
         }
         if (entity.modifications !== undefined && !Array.isArray(entity.modifications)) {
             errors.push(`${ref} modifications must be an array`);
         }
-        if (entity.type === 'ligand' && Array.isArray(entity.modifications) && entity.modifications.length > 0) {
-            errors.push(`${ref} modifications are not supported for ligands`);
+        if (['ligand', 'ion'].includes(entity.type) && Array.isArray(entity.modifications) && entity.modifications.length > 0) {
+            errors.push(`${ref} modifications are not supported for ${entity.type}s`);
         }
         (Array.isArray(entity.modifications) ? entity.modifications : []).forEach((modification, modIndex) => {
             if (!modification || typeof modification !== 'object' || Array.isArray(modification)
@@ -330,6 +353,7 @@ export function validateSuperset(document) {
             }
         });
         validateTemplates(entity, errors, warnings, ref);
+        validateTemplatesPath(entity, errors, ref);
         validateMsa(entity, errors, ref);
     });
 
@@ -364,6 +388,13 @@ export function serializeAlphaFold3(document) {
     if (![1, 2, 3, 4].includes(version)) errors.push('AlphaFold 3 version must be 1, 2, 3, or 4');
 
     const sequences = document.job.entities.map(entity => {
+        if (entity.type === 'ion') {
+            errors.push('AlphaFold 3 does not support Mol-1 ion entities');
+            return null;
+        }
+        if (entity.templatesPath) {
+            errors.push(`AlphaFold 3 does not support Mol-1 templatesPath for ${entity.chainIds.join(', ')}`);
+        }
         const target = {
             id: entity.chainIds.length === 1 ? entity.chainIds[0] : [...entity.chainIds]
         };
@@ -381,7 +412,7 @@ export function serializeAlphaFold3(document) {
         }
         if (entity.description) target.description = entity.description;
         return { [entity.type]: target };
-    });
+    }).filter(Boolean);
 
     const data = {
         name: document.job.name,
@@ -425,7 +456,10 @@ export function serializeServerStyle(document, targetName) {
         });
         if (entity.description) warnings.push(`Sequence descriptions are not part of the ${targetName} input contract and were omitted`);
 
-        if (entity.type === 'ligand') {
+        if (entity.type === 'ion') {
+            if (targetName === 'Mol-1') target.ion = entity.ionCode;
+            else errors.push(`${targetName} does not support JAAG ion entities`);
+        } else if (entity.type === 'ligand') {
             if (entity.ligand.source === 'ccd') {
                 const codes = entity.ligand.ccdCodes.map(code => {
                     const normalized = normalizeCCD(code);
@@ -438,8 +472,17 @@ export function serializeServerStyle(document, targetName) {
                 target.ligand = entity.ligand.smiles;
             } else if (entity.ligand.source === 'file') {
                 target.ligand = `FILE_${entity.ligand.path}`;
+                if (targetName === 'Mol-1' && !/\.(?:pdb|sdf|mol|mol2)$/i.test(entity.ligand.path)) {
+                    errors.push(`Mol-1 ligand paths must be PDB, SDF, MOL, or MOL2 files; got ${entity.ligand.path}`);
+                }
             }
         } else {
+            if (targetName === 'Mol-1') {
+                const allowed = entity.type === 'protein'
+                    ? /^[ACDEFGHIKLMNPQRSTVWYX]+$/i
+                    : entity.type === 'dna' ? /^[ACGTNXIU]+$/i : /^[ACGUNXI]+$/i;
+                if (!allowed.test(entity.sequence)) errors.push(`Mol-1 ${entity.type} sequence contains unsupported characters`);
+            }
             target.sequence = entity.sequence;
             if (entity.modifications?.length) {
                 target.modifications = entity.modifications.map(item => serverModification(entity.type, item));
@@ -452,8 +495,20 @@ export function serializeServerStyle(document, targetName) {
                 } else if (kind === 'unpaired') target.unpairedMsaPath = msa.value;
                 else if (entity.type === 'protein') target.pairedMsaPath = msa.value;
             }
+            if (entity.type === 'protein' && entity.templatesPath) {
+                if (targetName === 'Mol-1') {
+                    target.templatesPath = entity.templatesPath;
+                    if (!/\.(?:a3m|hhr|json)$/i.test(entity.templatesPath)) {
+                        errors.push(`Mol-1 template paths must be A3M, HHR, or JSON files; got ${entity.templatesPath}`);
+                    }
+                } else {
+                    errors.push(`${targetName} does not support Mol-1 templatesPath for ${entity.chainIds.join(', ')}`);
+                }
+            }
             if (entity.type === 'protein' && entity.templates?.length) {
-                errors.push(`${targetName} expects templatesPath (A3M/HHR), not AlphaFold template objects, for ${entity.chainIds.join(', ')}`);
+                errors.push(targetName === 'Mol-1'
+                    ? `Mol-1 expects native templatesPath inputs (A3M/HHR/JSON), not AlphaFold template objects, for ${entity.chainIds.join(', ')}`
+                    : `${targetName} does not support AlphaFold template objects for ${entity.chainIds.join(', ')}`);
             }
         }
         return { [SERVER_ENTITY_TYPES[entity.type]]: target };
@@ -668,6 +723,10 @@ export function serializeRosettaFold3(document) {
     }
 
     document.job.entities.forEach(entity => {
+        if (entity.type === 'ion') {
+            errors.push('RoseTTAFold3 does not support JAAG ion entities');
+            return;
+        }
         if (entity.description) {
             warnings.push(`Sequence descriptions are not part of the RoseTTAFold3 JSON input and were omitted for ${entity.chainIds.join(', ')}`);
         }
@@ -833,9 +892,11 @@ function buildChaiModifiedSequence(entity) {
 
 function yamlEscapeString(value) {
     const stringValue = String(value);
+    if (/[\u0000-\u001F\u007F]/.test(stringValue)) return JSON.stringify(stringValue);
     if (/^\s/.test(stringValue)
         || /[^A-Za-z0-9_./+\-]/.test(stringValue)
-        || Number.isFinite(Number(stringValue))) {
+        || Number.isFinite(Number(stringValue))
+        || /^(?:null|~|true|false|yes|no|on|off)$/i.test(stringValue)) {
         return `'${stringValue.replace(/'/g, "''")}'`;
     }
     return stringValue;
@@ -927,6 +988,205 @@ export function serializeBoltzYaml(document) {
     return { data: `${lines.join('\n')}\n`, errors, warnings };
 }
 
+// --- BioEmu2 system (YAML) adapter -----------------------------------------
+
+function bioemu2ChainIds(entities, errors) {
+    const ids = entities.flatMap(entity => entity.chainIds);
+    const used = new Set(ids.filter(id => id.length <= 4 && id.trim() === id));
+    const mapped = new Map();
+    const authorIds = {};
+    ids.forEach(id => {
+        if (id.length <= 4 && id.trim() === id) {
+            mapped.set(id, id);
+            return;
+        }
+        let index = 0;
+        let candidate = '';
+        do {
+            let value = index++;
+            candidate = '';
+            do {
+                candidate = String.fromCharCode(65 + (value % 26)) + candidate;
+                value = Math.floor(value / 26) - 1;
+            } while (value >= 0);
+        } while (used.has(candidate) && candidate.length <= 4);
+        if (candidate.length > 4) {
+            errors.push('BioEmu2 supports at most 475,254 distinct short chain IDs');
+            return;
+        }
+        used.add(candidate);
+        mapped.set(id, candidate);
+        authorIds[candidate] = id;
+    });
+    return { mapped, authorIds };
+}
+
+function bioemu2ResidueName(entity, position) {
+    const tokens = entity.type === 'ligand' ? [] : rosettaFoldSequenceTokens(entity.sequence);
+    const modifications = new Map((entity.modifications || []).map(mod => [mod.position, bioemu2CCD(mod.ccdCode)]));
+    const residueName = rosettaFoldResidueName(entity, position, tokens, modifications);
+    return residueName ? bioemu2CCD(residueName) : null;
+}
+
+function bioemu2CCD(value) {
+    const code = normalizeCCD(value);
+    return JAAG_CCD_ALIASES[code] || code;
+}
+
+function bioemu2BondEndpoint(endpoint, entitiesByChain, chainIds, errors, bondNumber, side) {
+    const entity = entitiesByChain.get(endpoint.chainId);
+    if (!entity) return null;
+    if (entity.type === 'ligand' && entity.ligand.source !== 'ccd') {
+        errors.push(`BioEmu2 cannot resolve bond ${bondNumber} ${side} on a ${entity.ligand.source}-defined ligand`);
+        return null;
+    }
+    const resName = bioemu2ResidueName(entity, endpoint.position);
+    if (!resName) {
+        errors.push(`BioEmu2 cannot infer the residue name for bond ${bondNumber} ${side} (${endpoint.chainId}:${endpoint.position})`);
+        return null;
+    }
+    return {
+        name: endpoint.atom,
+        res_name: resName,
+        res_id: endpoint.position,
+        asym_id: chainIds.mapped.get(endpoint.chainId)
+    };
+}
+
+function bioemu2BranchedIsConnected(entity, chainId, bonds) {
+    const count = entity.ligand.ccdCodes.length;
+    const adjacent = Array.from({ length: count }, () => []);
+    for (const bond of bonds) {
+        if (bond.left.chainId !== chainId || bond.right.chainId !== chainId) continue;
+        const left = bond.left.position - 1;
+        const right = bond.right.position - 1;
+        if (left < 0 || right < 0 || left >= count || right >= count) continue;
+        adjacent[left].push(right);
+        adjacent[right].push(left);
+    }
+    const visited = new Set([0]);
+    const pending = [0];
+    while (pending.length) {
+        for (const next of adjacent[pending.pop()]) {
+            if (!visited.has(next)) {
+                visited.add(next);
+                pending.push(next);
+            }
+        }
+    }
+    return visited.size === count;
+}
+
+export function serializeBioEmu2Yaml(document) {
+    const errors = [];
+    const warnings = ['BioEmu2 System YAML contains molecular composition only; JAAG job name and model seeds were omitted'];
+    const entities = document.job.entities;
+    const chainIds = bioemu2ChainIds(entities, errors);
+    const entitiesByChain = new Map();
+    entities.forEach(entity => entity.chainIds.forEach(id => entitiesByChain.set(id, entity)));
+    const usesBuiltInAlias = entities.some(entity => {
+        const codes = entity.type === 'ligand' && entity.ligand.source === 'ccd'
+            ? entity.ligand.ccdCodes
+            : [];
+        return [...codes, ...(entity.modifications || []).map(mod => mod.ccdCode)]
+            .some(code => Object.hasOwn(JAAG_CCD_ALIASES, normalizeCCD(code)));
+    });
+    if (usesBuiltInAlias) warnings.push('JAAG built-in CCD aliases were mapped to standard CCD IDs for BioEmu2');
+    const custom = document.job.customComponents || {};
+
+    if (custom.path) errors.push('BioEmu2 does not support AlphaFold userCCDPath inputs');
+    const userCCDIds = findUserCCDIds(custom.inline);
+    const unsupported = userCCDIds.filter(id => !JAAG_CCD_ALIASES[id]);
+    if (custom.inline && userCCDIds.length === 0) {
+        errors.push('BioEmu2 does not support custom inline userCCD data');
+    } else if (unsupported.length > 0) {
+        errors.push(`BioEmu2 does not support custom userCCD components: ${unsupported.join(', ')}`);
+    } else if (userCCDIds.length > 0) {
+        warnings.push('JAAG built-in CCD aliases were mapped to standard CCD IDs for BioEmu2');
+    }
+
+    const lines = ['entities:'];
+    entities.forEach((entity, index) => {
+        if (entity.type === 'ion') {
+            errors.push('BioEmu2 System YAML does not support JAAG ion entities');
+            return;
+        }
+        if (entity.description) warnings.push(`Entity descriptions are not part of the BioEmu2 System format and were omitted for ${entity.chainIds.join(', ')}`);
+        if (entity.msa) errors.push(`BioEmu2 System YAML does not accept MSA fields for ${entity.chainIds.join(', ')}; configure MSA separately when sampling`);
+        if (entity.templates?.length) errors.push(`BioEmu2 System YAML does not support AlphaFold template objects for ${entity.chainIds.join(', ')}`);
+
+        let entityType = entity.type;
+        let ligandCodes = [];
+        if (entity.type === 'ligand') {
+            if (entity.ligand.source === 'ccd') {
+                ligandCodes = entity.ligand.ccdCodes.map(bioemu2CCD);
+                if (ligandCodes.length > 1) entityType = 'branched';
+            } else if (entity.ligand.source === 'file') {
+                errors.push(`BioEmu2 does not support ligand file paths for ${entity.chainIds.join(', ')}`);
+            }
+        }
+
+        if (entityType === 'branched') {
+            entity.chainIds.forEach(chainId => {
+                if (!bioemu2BranchedIsConnected(entity, chainId, document.job.bonds || [])) {
+                    errors.push(`BioEmu2 requires explicit bonds connecting every CCD monomer in branched chain ${chainId}`);
+                }
+            });
+        }
+
+        const ids = entity.chainIds.map(id => chainIds.mapped.get(id)).filter(Boolean);
+        lines.push(`  - entity_type: ${entityType}`);
+        lines.push(`    asym_ids: [${ids.map(yamlEscapeString).join(', ')}]`);
+        if (entity.type === 'ligand') {
+            if (entity.ligand.source === 'ccd' && entityType === 'branched') {
+                lines.push('    mon_seq:');
+                ligandCodes.forEach(code => lines.push(`      - ccd_code: ${yamlEscapeString(code)}`));
+            } else if (entity.ligand.source === 'ccd') {
+                lines.push(`    ccd_code: ${yamlEscapeString(ligandCodes[0] || '')}`);
+            } else if (entity.ligand.source === 'smiles') {
+                lines.push(`    smiles: ${yamlEscapeString(entity.ligand.smiles)}`);
+            }
+        } else {
+            lines.push(`    sequence: ${yamlEscapeString(entity.sequence)}`);
+            if (entity.modifications?.length) {
+                lines.push('    mods:');
+                entity.modifications.forEach(mod => {
+                    lines.push(`      - res_id: ${mod.position}`);
+                    lines.push(`        ccd_code: ${yamlEscapeString(bioemu2CCD(mod.ccdCode))}`);
+                });
+            }
+        }
+        if (index < entities.length - 1) lines.push('');
+    });
+
+    if (!document.job.bonds?.length) {
+        lines.push('bonds: []');
+    } else {
+        lines.push('bonds:');
+        document.job.bonds.forEach((bond, index) => {
+            const atom1 = bioemu2BondEndpoint(bond.left, entitiesByChain, chainIds, errors, index + 1, 'atom1');
+            const atom2 = bioemu2BondEndpoint(bond.right, entitiesByChain, chainIds, errors, index + 1, 'atom2');
+            lines.push('  - atom1:');
+            for (const [key, value] of Object.entries(atom1 || {})) {
+                lines.push(`      ${key}: ${typeof value === 'number' ? value : yamlEscapeString(value)}`);
+            }
+            lines.push('    atom2:');
+            for (const [key, value] of Object.entries(atom2 || {})) {
+                lines.push(`      ${key}: ${typeof value === 'number' ? value : yamlEscapeString(value)}`);
+            }
+        });
+    }
+    if (Object.keys(chainIds.authorIds).length) {
+        lines.push('asym_id_to_author_id:');
+        for (const [asymId, authorId] of Object.entries(chainIds.authorIds)) {
+            lines.push(`  ${yamlEscapeString(asymId)}: ${yamlEscapeString(authorId)}`);
+        }
+        warnings.push('Chain IDs longer than four characters were shortened and recorded in asym_id_to_author_id');
+    }
+
+    return { data: `${lines.join('\n')}\n`, errors, warnings };
+}
+
 export const ADAPTERS = Object.freeze({
     alphafold3: Object.freeze({
         name: 'AlphaFold 3',
@@ -939,6 +1199,10 @@ export const ADAPTERS = Object.freeze({
     protenix: Object.freeze({
         name: 'Protenix',
         serialize: document => serializeServerStyle(document, 'Protenix')
+    }),
+    mol1: Object.freeze({
+        name: 'Mol-1',
+        serialize: document => serializeServerStyle(document, 'Mol-1')
     }),
     openfold3: Object.freeze({
         name: 'OpenFold 3',
@@ -955,6 +1219,10 @@ export const ADAPTERS = Object.freeze({
     boltz: Object.freeze({
         name: 'Boltz',
         serialize: serializeBoltzYaml
+    }),
+    bioemu2: Object.freeze({
+        name: 'BioEmu2',
+        serialize: serializeBioEmu2Yaml
     })
 });
 
@@ -976,6 +1244,12 @@ export const TARGETS = Object.freeze({
         usesServerJSON: true,
         outputFormat: 'json',
         capabilities: Object.freeze({ inlineMsa: false, msaPaths: true, templates: false, customComponents: false })
+    }),
+    mol1: Object.freeze({
+        name: 'Mol-1',
+        usesServerJSON: true,
+        outputFormat: 'json',
+        capabilities: Object.freeze({ inlineMsa: false, msaPaths: true, templates: true, customComponents: false })
     }),
     openfold3: Object.freeze({
         name: 'OpenFold 3',
@@ -1000,6 +1274,12 @@ export const TARGETS = Object.freeze({
         usesServerJSON: true,
         outputFormat: 'yaml',
         capabilities: Object.freeze({ inlineMsa: false, msaPaths: true, templates: false, customComponents: false })
+    }),
+    bioemu2: Object.freeze({
+        name: 'BioEmu2',
+        usesServerJSON: true,
+        outputFormat: 'yaml',
+        capabilities: Object.freeze({ inlineMsa: false, msaPaths: false, templates: false, customComponents: false })
     })
 });
 

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 // Number of entity-type options rendered by the builder's per-row type selector.
-const ENTITY_TYPE_COUNT = 4;
+const ENTITY_TYPE_COUNT = 5;
 
 // Contract test for the standalone REvoCompute plugin bundle. It mirrors the
 // harness REvoCompute uses in tests/js/test_contracts.js: the bundle is loaded
@@ -235,11 +235,11 @@ test('switching an entity row to ligand reveals the ligand input and runs valida
     const context = { setGeneratedFile() {}, generatedFile() { return null; }, form: { name: 'alphafold3', params: [] }, changed() {} };
     definition.mount(target, { options: { target: 'alphafold3' } }, context);
 
-    // The entity type selector has four options (protein/dna/rna/ligand), while
+    // The entity type selector has five options (protein/dna/rna/ligand/ion), while
     // the target selector has exactly one option in single-target mode.
     const typeSelect = walk(target, node => node.tag === 'select' && node.children.length === ENTITY_TYPE_COUNT);
     assert.ok(typeSelect, 'entity type selector is present');
-    const ligandInput = walk(target, node => node.tag === 'input' && node.placeholder === 'CCD codes (NAG,FUC) or SMILES');
+    const ligandInput = walk(target, node => node.tag === 'input' && node.placeholder === 'CCD codes, SMILES, FILE_<path>, or ion code (MG)');
     const sequenceArea = walk(target, node => node.tag === 'textarea' && node.placeholder === 'sequence');
     assert.ok(ligandInput && sequenceArea, 'entity fields are present');
 
