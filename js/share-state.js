@@ -52,9 +52,10 @@
         }
     }
 
-    async function restoreDocument(inputDocument) {
+    async function restoreDocument(inputDocument, successMessage = 'Shared JAAG input restored') {
         const validation = window.JAAGCore.validateSuperset(inputDocument);
         if (!validation.valid) throw new Error(validation.errors.join('; '));
+        window.app.isRestoringSharedInput = true;
         setValue('jobName', inputDocument.job.name);
         setValue('modelSeedsMultiple', inputDocument.job.seeds.join(', '));
         setValue('version', inputDocument.options?.alphafoldVersion || 4);
@@ -66,6 +67,7 @@
         window.app.bondCounter = 0;
         window.app.userCCDs = {};
         window.app.glycanUserCCDs = {};
+        setValue('userCCDPath', '');
         document.getElementById('sequencesContainer').innerHTML = '';
         const bondsContainer = document.getElementById('bondedAtomPairsContainer');
         if (bondsContainer) bondsContainer.innerHTML = '';
@@ -127,7 +129,7 @@
         clearTimeout(window.app.generateTimeout);
         window.app.isRestoringSharedInput = false;
         await window.app.generateJSON();
-        window.app.showSuccess('Shared JAAG input restored');
+        window.app.showSuccess(successMessage);
     }
 
     async function shareInput() {
@@ -153,6 +155,7 @@
     }
 
     window.shareInput = shareInput;
+    window.restoreJAAGDocument = restoreDocument;
     window.addEventListener('DOMContentLoaded', async () => {
         const payload = new URL(window.location.href).searchParams.get('p');
         if (!payload) return;
