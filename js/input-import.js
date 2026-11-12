@@ -61,13 +61,54 @@
         return number;
     }
 
-    function chainIdsFrom(value, countValue, index) {
-        let ids = Array.isArray(value)
-            ? value.map(item => String(item).trim()).filter(Boolean)
-            : typeof value === 'string' && value.trim() ? [value.trim()] : [];
+    function alphabeticChainId(index) {
+        let value = index + 1;
+        let id = '';
+        while (value > 0) {
+            value -= 1;
+            id = String.fromCharCode(65 + (value % 26)) + id;
+            value = Math.floor(value / 26);
+        }
+        return id;
+    }
+
+    function makeChainIdAllocator(sequenceEntries) {
+        const used = new Set();
+        for (const entry of sequenceEntries) {
+            if (!isRecord(entry)) continue;
+            const [sourceType] = Object.keys(entry);
+            const source = entry[sourceType];
+            if (!isRecord(source)) continue;
+            const values = Array.isArray(source.id) ? source.id : [source.id];
+            for (const value of values) {
+                if (typeof value === 'string' && value.trim()) used.add(value.trim());
+            }
+        }
+        let next = 0;
+        return count => Array.from({ length: count }, () => {
+            let candidate;
+            do candidate = alphabeticChainId(next++);
+            while (used.has(candidate));
+            used.add(candidate);
+            return candidate;
+        });
+    }
+
+    function chainIdsFrom(value, countValue, index, allocateFallback) {
+        let ids = [];
+        if (Array.isArray(value)) {
+            if (value.some(item => typeof item !== 'string' || !item.trim())) {
+                fail(`Entity ${index + 1} chain IDs must be non-empty strings`);
+            }
+            ids = value.map(item => item.trim());
+        } else if (typeof value === 'string') {
+            ids = value.trim() ? [value.trim()] : [];
+        } else if (value !== undefined && value !== null) {
+            fail(`Entity ${index + 1} chain IDs must be a string or string array`);
+        }
         const count = positiveInteger(countValue, `Entity ${index + 1} count`, ids.length || 1);
         if (!ids.length) {
-            ids = Array.from({ length: count }, (_, copy) => `I${index + 1}${copy + 1}`);
+            ids = allocateFallback ? allocateFallback(count) : Array.from({ length: count }, (_, copy) => `I${index + 1}${copy + 1}`);
         } else if (ids.length !== count) {
             fail(`Entity ${index + 1} count does not match its chain IDs`);
         }
@@ -187,6 +228,7 @@
             fail('Job modelSeeds must be a non-empty array');
         }
         const sequenceEntries = requireArray(job.sequences, 'Job sequences');
+        const allocateFallbackIds = makeChainIdAllocator(sequenceEntries);
         const entities = sequenceEntries.map((entry, index) => {
             requireRecord(entry, `Sequence ${index + 1}`);
             const keys = Object.keys(entry);
@@ -210,7 +252,7 @@
             if (sourceType === 'proteinChain' && target !== 'mol1' && source.templatesPath) {
                 fail(`${window.JAAGCore.TARGETS[target].name} does not support Mol-1 templatesPath`);
             }
-            const chainIds = chainIdsFrom(source.id, source.count, index);
+            const chainIds = chainIdsFrom(source.id, source.count, index, allocateFallbackIds);
             const entity = { key: `entity-${index + 1}`, type, chainIds };
             if (source.description) entity.description = String(source.description);
 
@@ -563,6 +605,11 @@
                             : kind === 'ion' ? ['id', 'ionCode', 'ion'] : [];
                     if (!allowed.length) fail(`AlphaFold 3 sequence ${index + 1} has unsupported entity type ${kind}`);
                     rejectUnknownKeys(source, allowed, `AlphaFold 3 sequence ${index + 1} ${kind}`);
+                    for (const msaField of ['unpairedMsa', 'pairedMsa']) {
+                        if (source[msaField] === '') {
+                            fail(`AlphaFold 3 sequence ${index + 1} uses ${msaField}: "" to disable MSA search, which the editor cannot preserve`);
+                        }
+                    }
                     if (source.unpairedMsa && source.unpairedMsaPath) {
                         fail(`AlphaFold 3 sequence ${index + 1} defines both inline and path-based unpaired MSA`);
                     }
@@ -578,7 +625,11 @@
                             });
                     }
                     if (source.templates !== undefined) {
-                        requireArray(source.templates, `AlphaFold 3 sequence ${index + 1} templates`)
+                        const templates = requireArray(source.templates, `AlphaFold 3 sequence ${index + 1} templates`);
+                        if (templates.length === 0) {
+                            fail(`AlphaFold 3 sequence ${index + 1} uses templates: [] to disable template search, which the editor cannot preserve`);
+                        }
+                        templates
                             .forEach((template, templateIndex) => {
                                 requireRecord(template, `AlphaFold 3 sequence ${index + 1} template ${templateIndex + 1}`);
                                 rejectUnknownKeys(template, ['mmcif', 'mmcifPath', 'queryIndices', 'templateIndices'], `AlphaFold 3 sequence ${index + 1} template ${templateIndex + 1}`);

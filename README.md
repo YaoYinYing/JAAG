@@ -147,6 +147,9 @@ current form, so a mismatched or unsupported file leaves the current work
 untouched. Mol-1 `templatesPath` and `FILE_` ligand paths restore to their
 matching fields. Custom `userCCD` data is only supported when restoring AlphaFold
 3 JSON; server-style inputs that include it are rejected with an explanation.
+AF3 inputs that explicitly disable MSA with an empty string or template search
+with `templates: []` are also rejected because the editor cannot preserve those
+settings.
 Chai-1 is not listed because its input is FASTA rather than JSON or YAML.
 
 ### Glycan Structure Management
