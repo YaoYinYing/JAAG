@@ -136,6 +136,19 @@ depending on the target) with an attachment filename.
 Malformed, oversized, schema-invalid, or target-incompatible payloads return a
 non-success response and never carry an attachment header.
 
+#### Restore an editor from JSON/YAML
+
+Use **Restore Workbench from JSON/YAML** to load an existing AlphaFold 3,
+OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Boltz, or BioEmu2 input.
+Choose the input's target first; the file picker then accepts only that target's
+JSON or YAML extension (AlphaFold 3 also accepts single-job JSONL). JAAG
+validates the selected dialect and target compatibility before replacing the
+current form, so a mismatched or unsupported file leaves the current work
+untouched. Mol-1 `templatesPath` and `FILE_` ligand paths restore to their
+matching fields. Custom `userCCD` data is only supported when restoring AlphaFold
+3 JSON; server-style inputs that include it are rejected with an explanation.
+Chai-1 is not listed because its input is FASTA rather than JSON or YAML.
+
 ### Glycan Structure Management
 - **Integrated SugarDrawer**: Built-in glycan drawing interface with popup modal support
 - **GlycoCT Processing**: Full GlycoCT format parsing and conversion to bondedAtomPairs + CCD codes

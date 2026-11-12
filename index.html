@@ -170,6 +170,34 @@
                     </div>
                 </div>
 
+                <!-- Restore an existing target input into the editor -->
+                <div class="card mb-4">
+                    <div class="card-header">Restore Workbench from JSON/YAML</div>
+                    <div class="card-body">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-5">
+                                <label for="restoreInputTarget" class="form-label">File format / target*</label>
+                                <select class="form-select" id="restoreInputTarget" required onchange="updateRestoreFileState()">
+                                    <option value="">Choose the file's target format first</option>
+                                    <option value="alphafold3">AlphaFold 3 JSON</option>
+                                    <option value="opendde">OpenDDE JSON</option>
+                                    <option value="protenix">Protenix JSON</option>
+                                    <option value="mol1">Mol-1 JSON</option>
+                                    <option value="openfold3">OpenFold 3 JSON</option>
+                                    <option value="rosettafold3">RoseTTAFold3 JSON</option>
+                                    <option value="boltz">Boltz YAML</option>
+                                    <option value="bioemu2">BioEmu2 System YAML</option>
+                                </select>
+                            </div>
+                            <div class="col-md-7">
+                                <label for="restoreInputFile" class="form-label">Input file</label>
+                                <input type="file" class="form-control" id="restoreInputFile" accept=".json,.jsonl,.yaml,.yml" disabled onchange="restoreInputFile(this)">
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2">Choose the format that matches the file (for example, select AlphaFold 3 before loading its JSON/JSONL). A successful import switches the workbench to that target; JSONL imports must contain exactly one job.</small>
+                    </div>
+                </div>
+
                 <!-- Sequences Section -->
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
@@ -355,5 +383,6 @@
     <script src="js/glycan-enrichment.js"></script>
     <script src="js/json-generator.js"></script>
     <script src="js/share-state.js"></script>
+    <script src="js/input-import.js"></script>
 </body>
 </html>
