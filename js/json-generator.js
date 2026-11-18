@@ -18,6 +18,25 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
         throw new Error('At least one model seed is required');
     }
 
+    // Manual sites are intentional; detected sequons become attachments once a glycan is supplied.
+    for (const seq of this.sequences.filter(item => item.type === 'protein')) {
+        for (const [suffix, prefix, optional] of [
+            ['glycosylationSites', 'glyco_', false], ['sequonSites', 'sequon_', true]
+        ]) {
+            const cards = document.getElementById(`${seq.id}_${suffix}`)?.querySelectorAll(`.card[id^="${prefix}"]`) || [];
+            for (const card of cards) {
+                const value = field => document.getElementById(`${card.id}_${field}`)?.value?.trim() || '';
+                if (optional && !value('glycan')) continue;
+                const position = Number(value('position'));
+                const residue = optional ? 'N' : value('residueType');
+                const atom = optional ? 'ND2' : value(residue === 'custom' ? 'customAtom' : 'atom');
+                if (!Number.isInteger(position) || position < 1 || !residue || !atom || !value('chainId') || !value('glycan')) {
+                    throw new Error(`Complete or remove the glycosylation site on ${seq.id}`);
+                }
+            }
+        }
+    }
+
     // Update all sequence data with current DOM state before processing
     if (typeof window.updateSequenceData === 'function') {
         for (const seq of this.sequences) {
@@ -63,6 +82,7 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
                                         glycosylationResults.push(glycoResult);
                                     }
                                 } catch (error) {
+                                    throw new Error(`Glycosylation on chain ${chainId}: ${error.message}`);
                                 }
                             }
                         }
@@ -85,6 +105,7 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
                                 glycosylationResults.push(glycoResult);
                             }
                         } catch (error) {
+                            throw new Error(`Glycosylation on chain ${seqData.protein.id}: ${error.message}`);
                         }
                     }
                 }

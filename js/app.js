@@ -165,9 +165,10 @@ class AlphaFold3Generator {
         } catch (error) {
             if (generation !== this.generation || this.isRestoringSharedInput) return;
             this.lastValidation = { valid: false, errors: [error.message], warnings: [] };
+            const status = document.getElementById('validationStatus');
+            if (status) status.textContent = `Error: ${error.message}`;
             const outputElement = document.getElementById('jsonOutput');
             if (outputElement) outputElement.textContent = `Error: ${error.message}`;
-            this.showError('Input Generation Error: ' + error.message);
         }
     }
 

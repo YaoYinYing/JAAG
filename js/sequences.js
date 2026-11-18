@@ -4404,8 +4404,10 @@ async function processGlycosylationSites(sequenceId, proteinChainId, multimerCha
                     Object.assign(window.app.glycanUserCCDs, converted.userCCDs);
                 }
             } else {
+                throw new Error(`No residues could be converted for glycan at position ${site.position}`);
             }
         } catch (error) {
+            throw new Error(`Glycan at position ${site.position}: ${error.message}`);
         }
     }
 
