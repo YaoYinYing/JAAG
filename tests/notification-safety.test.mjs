@@ -30,6 +30,23 @@ test('notification messages are rendered as text', () => {
     assert.ok(!toast.innerHTML.includes(payload));
 });
 
+test('debug entries keep message text out of markup', () => {
+    const payload = '<svg onload=alert(1)>';
+    const entries = [];
+    const log = { children: [], appendChild(node) { entries.push(node); }, scrollHeight: 0 };
+    const document = {
+        addEventListener() {},
+        getElementById(id) { return id === 'debugLog' ? log : null; },
+        createElement() {
+            return { style: {}, children: [], append(...nodes) { this.children.push(...nodes); } };
+        }
+    };
+    const Generator = appClass(document);
+    Object.create(Generator.prototype).addToDebugLog('ERROR', payload);
+    assert.equal(entries[0].children[1].textContent, payload);
+    assert.equal(entries[0].innerHTML, undefined);
+});
+
 test('lookup refuses a stale or non-AlphaFold preview before any request', async () => {
     let requests = 0;
     const messages = [];

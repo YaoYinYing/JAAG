@@ -375,6 +375,11 @@ AlphaFold3Generator.prototype.validateJSON = function(jsonData) {
         errors.push(...bondValidation.errors);
         warnings.push(...bondValidation.warnings);
     }
+    if (this.bondedAtomPairs.some(bond => bond.id !== undefined
+        && !(Array.isArray(bond.data) && bond.data.length === 2)
+        && !(bond.data?.atom1 && bond.data?.atom2))) {
+        errors.push('Complete or remove each covalent bond before generating input');
+    }
 
     // Update status display
     this.updateValidationStatus(status, errors, warnings);

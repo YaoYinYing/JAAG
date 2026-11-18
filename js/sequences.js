@@ -2495,6 +2495,8 @@ function removeBondedAtomPair(bondId) {
     if (window.app.bondedAtomPairs.length === 0) {
         container.innerHTML = '<p class="text-muted">No bondedAtomPairs defined</p>';
     }
+
+    updateBondedAtomPairsVisibility();
     
     // Regenerate JSON
     app.debounceGenerate();
@@ -3424,16 +3426,15 @@ function updateSequenceVisualization(sequenceId) {
 }
 
 /**
- * Update the visibility of the Bonded Atom Pairs section based on whether ligand sequences exist
+ * Keep bonds editable for any entity type, including when a referenced entity is removed.
  */
 function updateBondedAtomPairsVisibility() {
     const dynamicSection = document.getElementById("dynamicBondedAtomPairsSection");
     if (!dynamicSection) return;
     
-    // Check if there are any ligand sequences
-    const hasLigands = app && app.sequences && app.sequences.some(seq => seq.type === "ligand");
+    const showBonds = app && (app.sequences.length > 0 || app.bondedAtomPairs.some(bond => bond.id !== undefined));
     
-    if (hasLigands && !document.getElementById("bondedAtomPairsContainer")) {
+    if (showBonds && !document.getElementById("bondedAtomPairsContainer")) {
         // Show the bonded atom pairs section
         dynamicSection.innerHTML = `
             <div class="mt-4">
@@ -3470,13 +3471,9 @@ function updateBondedAtomPairsVisibility() {
                 </div>
             </div>
         `;
-    } else if (!hasLigands && document.getElementById("bondedAtomPairsContainer")) {
+    } else if (!showBonds && document.getElementById("bondedAtomPairsContainer")) {
         // Hide the bonded atom pairs section
         dynamicSection.innerHTML = "";
-        // Clear any existing bonds
-        if (app && window.app.bondedAtomPairs) {
-            window.app.bondedAtomPairs = [];
-        }
     }
 }
 
