@@ -278,3 +278,50 @@ test('inactive inline alternatives remain editable after snapshot restore', asyn
     });
     expect(result).toEqual({ values: ['>query\nMNNSTAA', 'ATP', 'C(C)O', 'inactive GlycoCT', 'DRAFT', 'unfinished CCD data'], same: true });
 });
+
+test('inactive inline template remains editable beside its bound file', async ({ page }) => {
+    await page.goto('/integration/input-builder/harness.html');
+    const result = await page.evaluate(async () => {
+        const { mount } = await import('/integration/input-builder/index.mjs');
+        const holder = document.createElement('div'); document.body.append(holder);
+        const builder = await mount(holder, { target: 'alphafold3' });
+        const w = holder.querySelector('iframe').contentWindow;
+        const set = (id, value) => { const element = w.document.getElementById(id); element.value = value; element.dispatchEvent(new Event('input', { bubbles: true })); };
+        w.addSequence('protein'); set('seq_1_sequence', 'MNNSTAA'); set('jobName', 'Synthetic_Test');
+        w.addTemplate('seq_1');
+        const card = w.document.querySelector('#seq_1_templates .card[id^="template_"]');
+        set(`${card.id}_mmcifPath`, '/private/template.cif');
+        set(`${card.id}_mmcif`, 'inactive template draft');
+        set(`${card.id}_queryIndices`, '0'); set(`${card.id}_templateIndices`, '0');
+        const supply = () => ({ name: 'template.cif', bytes: new TextEncoder().encode('template data') });
+        const first = await builder.materialize(supply);
+        const files = new Map(first.dependencies.map(file => [file.id, file]));
+        await builder.restore(first.snapshot, slot => files.get(slot.id)?.bytes);
+        const child = holder.querySelector('iframe').contentWindow;
+        const restored = child.document.querySelector('#seq_1_templates .card[id^="template_"]');
+        const draft = child.document.getElementById(`${restored.id}_mmcif`).value;
+        const second = await builder.materialize(slot => files.get(slot.id));
+        builder.destroy();
+        return { draft, same: first.output.sha256 === second.output.sha256 };
+    });
+    expect(result).toEqual({ draft: 'inactive template draft', same: true });
+});
+
+test('SugarDrawer loads a real core structure and exports it into the workbench', async ({ page }) => {
+    const external = [];
+    await page.route('https://**', route => { external.push(route.request().url()); return route.abort(); });
+    const editor = await openBuilder(page, 'alphafold3');
+    await editor.locator("button[onclick=\"addSequence('ligand')\"]").click();
+    await editor.getByRole('button', { name: 'Open SugarDrawer to draw glycan structure' }).click();
+    const drawer = editor.frameLocator('#sugarDrawerPopupFrame');
+    await drawer.getByRole('button', { name: 'Load Structure' }).click();
+    await drawer.getByText('Core', { exact: true }).first().click();
+    const close = await editor.getByRole('button', { name: 'Close', exact: true }).boundingBox();
+    expect(close.y).toBeGreaterThanOrEqual(0);
+    await drawer.getByRole('button', { name: 'Export & Close' }).click();
+    await expect(editor.locator('#seq_2_glycoCT')).toHaveValue(/RES/, { timeout: 15000 });
+    await expect(editor.locator('#sugarDrawerPopupFrame')).not.toBeVisible();
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    expect(external).toEqual([]);
+});

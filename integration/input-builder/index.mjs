@@ -49,8 +49,14 @@ export async function mount(container, { target, editorURL = DEFAULT_EDITOR.href
         if (!record) return;
         record.cancel?.();
         try { record.window?.document.removeEventListener('bionuta-change', record.onChange); } catch { /* Frame navigated away. */ }
+        record.modal?.removeEventListener('show.bs.modal', record.onModalShow);
+        record.modal?.removeEventListener('shown.bs.modal', record.onModalShown);
+        record.modal?.removeEventListener('hidden.bs.modal', record.onModalHidden);
+        window.removeEventListener('resize', record.resize);
         record.observer?.disconnect();
         if (record.raf) cancelAnimationFrame(record.raf);
+        if (record.scrollRaf) cancelAnimationFrame(record.scrollRaf);
+        if (record.modalOpen || record.scrollRaf) record.restoreScroll?.();
         record.frame.remove();
         frames.delete(record);
     }
@@ -101,11 +107,43 @@ export async function mount(container, { target, editorURL = DEFAULT_EDITOR.href
                 record.raf = requestAnimationFrame(() => {
                     record.raf = 0;
                     try {
-                        if (frame.isConnected && !frame.hidden) frame.style.height = `${Math.max(600, Math.ceil(child.document.body.getBoundingClientRect().height))}px`;
+                        if (frame.isConnected && !frame.hidden) frame.style.height = record.modalOpen
+                            ? `${Math.max(300, window.innerHeight)}px`
+                            : `${Math.max(600, Math.ceil(child.document.body.getBoundingClientRect().height))}px`;
                     } catch { /* A navigated frame is rejected by the public methods. */ }
                 });
             };
             record.resize = resize;
+            window.addEventListener('resize', resize);
+            // A fixed-position modal needs a viewport-sized frame. The ordinary
+            // editor grows with its content so the host owns the page scroll.
+            record.modal = child.document.getElementById('sugarDrawerPopupModal');
+            record.onModalShow = () => {
+                record.scrollPositions = [];
+                for (let element = frame.parentElement; element; element = element.parentElement) {
+                    record.scrollPositions.push([element, element.scrollLeft, element.scrollTop]);
+                }
+                record.windowScroll = [window.scrollX, window.scrollY];
+                record.modalOpen = true;
+                frame.style.height = `${Math.max(300, window.innerHeight)}px`;
+                frame.scrollIntoView({ block: 'start', inline: 'nearest' });
+            };
+            record.onModalHidden = () => {
+                record.modalOpen = false;
+                resize();
+                record.scrollRaf = requestAnimationFrame(() => {
+                    record.scrollRaf = 0;
+                    record.restoreScroll();
+                });
+            };
+            record.onModalShown = () => frame.scrollIntoView({ block: 'start', inline: 'nearest' });
+            record.restoreScroll = () => {
+                for (const [element, left, top] of record.scrollPositions || []) element.scrollTo(left, top);
+                if (record.windowScroll) window.scrollTo(...record.windowScroll);
+            };
+            record.modal?.addEventListener('show.bs.modal', record.onModalShow);
+            record.modal?.addEventListener('shown.bs.modal', record.onModalShown);
+            record.modal?.addEventListener('hidden.bs.modal', record.onModalHidden);
             if (typeof ResizeObserver === 'function') {
                 record.observer = new ResizeObserver(resize);
                 record.observer.observe(child.document.body);

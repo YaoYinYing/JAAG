@@ -103,10 +103,13 @@ input import remain distinct from native snapshot restoration.
 `npm test` runs DOM-free tests. `npm ci` and `npm run build:vendor` reproduce
 the checked-in static browser assets. For the SugarDrawer smoke test, run
 `npm --prefix sugardrawer ci` and `npm --prefix sugardrawer run build` first.
+SugarDrawer's build preserves native JavaScript classes because its parser
+extends a native class shipped by SugarSketcher; this requires a modern browser.
 `npx playwright install chromium` and `npm run test:browser` run the
 real-browser harness tests. To use
 an installed Chromium-compatible browser, set `BIONUTA_CHROMIUM_PATH` to its
-executable. These tests do not run inference or demonstrate production host
+executable. For Firefox, install it with `npx playwright install firefox` and
+run `BIONUTA_BROWSER=firefox npm run test:browser`. These tests do not run inference or demonstrate production host
 integration. The current REvoCompute workspace plugin is module-based and its
 clone flow has separate persistence and authorization requirements; mapping
 this API into that lifecycle remains downstream work.
