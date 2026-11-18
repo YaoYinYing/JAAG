@@ -1,6 +1,6 @@
-# JAAG: input-file assembly for AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2
+# BioNuTA — Biomolecular Input Assembler
 
-JAAG is a comprehensive web-based tool for generating input files for open structure prediction tools including AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2, with advanced glycan structure support and integrated SugarDrawer functionality.
+BioNuTA (formerly JAAG) is a web-based workbench for generating input files for open structure prediction tools including AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2, with advanced glycan structure support and integrated SugarDrawer functionality.
 Web tool link: https://biofgreat.org/JAAG/  
 Full tutorial PDF: https://www.biofgreat.org/JAAG/Tutorial.pdf  
 Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.pptx

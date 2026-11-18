@@ -101,7 +101,7 @@ function addSequence(type) {
         const newSequenceElement = document.getElementById(`sequence_${sequenceId}`);
         if (newSequenceElement) {
             newSequenceElement.scrollIntoView({
-                behavior: 'smooth',
+                behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
                 block: 'start',
                 inline: 'nearest'
             });
@@ -133,7 +133,7 @@ function createProteinSequenceHTML(sequenceId) {
                 <span class="badge bg-secondary ms-2" id="${sequenceId}_chainBadge">-</span>
                 <i class="fas fa-chevron-down ms-2"></i>
             </button>
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSequence('${sequenceId}')">
+            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="Delete entity" onclick="removeSequence('${sequenceId}')">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -141,22 +141,22 @@ function createProteinSequenceHTML(sequenceId) {
             <div class="card-body">
             <div class="row">
                 <div class="col-md-2">
-                    <label class="form-label">Chain ID*</label>
+                    <label for="${sequenceId}_id" class="form-label">Chain ID*</label>
                     <input type="text" class="form-control" id="${sequenceId}_id" placeholder="" oninput="validateChainId(this); updateSequenceDataSync('${sequenceId}', 'protein');">
 
-                    <label class="form-label mt-3">Count</label>
+                    <label for="${sequenceId}_count" class="form-label mt-3">Count</label>
                     <input type="number" class="form-control" id="${sequenceId}_count" value="1" min="1" onchange="updateMultimerChains('${sequenceId}')">
                 </div>
                 <div class="col-md-10">
-                    <label class="form-label">Protein Sequence*</label>
-                    <div class="d-flex align-items-center mb-2">
-                        <label class="form-label me-3 mb-0">UniProt Import (optional)</label>
+                    <label for="${sequenceId}_sequence" class="form-label">Protein Sequence*</label>
+                    <div class="d-flex align-items-center mb-2 uniprot-import">
+                        <label for="${sequenceId}_uniprotId" class="form-label me-3 mb-0">UniProt Import (optional)</label>
                         <div class="input-group" style="max-width: 280px;">
                             <input type="text" class="form-control" id="${sequenceId}_uniprotId"
                                 placeholder="UniProt ID (e.g., P20273)" style="text-transform: uppercase;"
                                 oninput="this.value = this.value.toUpperCase()">
                             <button class="btn btn-outline-primary" type="button"
-                                onclick="fetchUniProtSequence('${sequenceId}')" title="Fetch sequence from UniProt">
+                                onclick="fetchUniProtSequence('${sequenceId}')" aria-label="Fetch sequence from UniProt" title="Fetch sequence from UniProt">
                                 <i class="fas fa-download"></i>
                             </button>
                         </div>
@@ -415,7 +415,7 @@ function createRNASequenceHTML(sequenceId) {
                 <span class="badge bg-secondary ms-2" id="${sequenceId}_chainBadge">-</span>
                 <i class="fas fa-chevron-down ms-2"></i>
             </button>
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSequence('${sequenceId}')">
+            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="Delete entity" onclick="removeSequence('${sequenceId}')">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -423,15 +423,15 @@ function createRNASequenceHTML(sequenceId) {
             <div class="card-body">
             <div class="row">
                 <div class="col-md-2">
-                    <label class="form-label">Chain ID*</label>
+                    <label for="${sequenceId}_id" class="form-label">Chain ID*</label>
                     <input type="text" class="form-control" id="${sequenceId}_id" placeholder="" oninput="validateChainId(this); updateSequenceDataSync('${sequenceId}', 'ligand');">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Count</label>
+                    <label for="${sequenceId}_count" class="form-label">Count</label>
                     <input type="number" class="form-control" id="${sequenceId}_count" value="1" min="1" onchange="updateMultimerChains('${sequenceId}')">
                 </div>
                 <div class="col-md-8">
-                    <label class="form-label">RNA Sequence*</label>
+                    <label for="${sequenceId}_sequence" class="form-label">RNA Sequence*</label>
                     <textarea class="form-control" id="${sequenceId}_sequence" rows="2"
                         placeholder="Enter RNA sequence (A, U, G, C)"
                         oninput="validateRNASequence(this); updateSequenceDataSync('${sequenceId}', 'rna');"></textarea>
@@ -561,7 +561,7 @@ function createDNASequenceHTML(sequenceId) {
                 <span class="badge bg-secondary ms-2" id="${sequenceId}_chainBadge">-</span>
                 <i class="fas fa-chevron-down ms-2"></i>
             </button>
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSequence('${sequenceId}')">
+            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="Delete entity" onclick="removeSequence('${sequenceId}')">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -569,15 +569,15 @@ function createDNASequenceHTML(sequenceId) {
             <div class="card-body">
             <div class="row">
                 <div class="col-md-2">
-                    <label class="form-label">Chain ID*</label>
+                    <label for="${sequenceId}_id" class="form-label">Chain ID*</label>
                     <input type="text" class="form-control" id="${sequenceId}_id" placeholder="" oninput="validateChainId(this); updateSequenceDataSync('${sequenceId}', 'ligand');">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Count</label>
+                    <label for="${sequenceId}_count" class="form-label">Count</label>
                     <input type="number" class="form-control" id="${sequenceId}_count" value="1" min="1" onchange="updateMultimerChains('${sequenceId}')">
                 </div>
                 <div class="col-md-8">
-                    <label class="form-label">DNA Sequence*</label>
+                    <label for="${sequenceId}_sequence" class="form-label">DNA Sequence*</label>
                     <textarea class="form-control" id="${sequenceId}_sequence" rows="2"
                         placeholder="Enter DNA sequence (A, T, G, C)"
                         oninput="validateDNASequence(this); updateSequenceDataSync('${sequenceId}', 'dna');"></textarea>
@@ -651,7 +651,7 @@ function createLigandSequenceHTML(sequenceId) {
                 <span class="badge bg-secondary ms-2" id="${sequenceId}_chainBadge">-</span>
                 <i class="fas fa-chevron-down ms-2"></i>
             </button>
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSequence('${sequenceId}')">
+            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="Delete entity" onclick="removeSequence('${sequenceId}')">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -659,11 +659,11 @@ function createLigandSequenceHTML(sequenceId) {
             <div class="card-body">
             <div class="row">
                 <div class="col-md-3">
-                    <label class="form-label">Chain ID*</label>
+                    <label for="${sequenceId}_id" class="form-label">Chain ID*</label>
                     <input type="text" class="form-control" id="${sequenceId}_id" placeholder="" oninput="validateChainId(this); updateSequenceDataSync('${sequenceId}', 'ligand');">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Input Type</label>
+                    <label for="${sequenceId}_ligandType" class="form-label">Input Type</label>
                     <select class="form-select" id="${sequenceId}_ligandType" onchange="toggleLigandInputs('${sequenceId}')">
                         <option value="glycan" selected>Glycan</option>
                         <option value="ccd">CCD Codes</option>
@@ -675,31 +675,31 @@ function createLigandSequenceHTML(sequenceId) {
                 <div class="col-md-6">
                     <div id="${sequenceId}_glycanInput">
                         <div class="d-flex align-items-center mb-1">
-                            <label class="form-label mb-0 me-2">GlycoCT Data*</label>
+                            <label for="${sequenceId}_glycoCT" class="form-label mb-0 me-2">GlycoCT Data*</label>
                             <button type="button" class="btn btn-outline-primary btn-sm"
                                     style="padding: 1px 4px; font-size: 10px;"
                                     onclick="openSugarDrawerPopup('${sequenceId}_glycoCT')"
-                                    title="Open SugarDrawer to draw glycan structure">
+                                    aria-label="Open SugarDrawer to draw glycan structure" title="Open SugarDrawer to draw glycan structure">
                                 <i class="fas fa-pen"></i>
                             </button>
                         </div>
                         <textarea class="form-control" id="${sequenceId}_glycoCT" rows="2" placeholder="Import GlycoCT from SugarDrawer or paste GlycoCT from database" oninput="updateSequenceDataSync('${sequenceId}', 'ligand')"></textarea>
                     </div>
                     <div id="${sequenceId}_ccdInput" style="display:none;">
-                        <label class="form-label">CCD Codes*</label>
+                        <label for="${sequenceId}_ccdCodes" class="form-label">CCD Codes*</label>
                         <input type="text" class="form-control" id="${sequenceId}_ccdCodes" placeholder="ATP,MG (comma-separated)" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()">
                     </div>
                     <div id="${sequenceId}_ionInput" style="display:none;">
-                        <label class="form-label">Ion CCD Code*</label>
+                        <label for="${sequenceId}_ionCode" class="form-label">Ion CCD Code*</label>
                         <input type="text" class="form-control" id="${sequenceId}_ionCode" placeholder="MG" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase(); updateSequenceDataSync('${sequenceId}', 'ligand');">
                     </div>
                     <div id="${sequenceId}_fileInput" style="display:none;">
-                        <label class="form-label">Mol-1 Ligand File Path*</label>
+                        <label for="${sequenceId}_filePath" class="form-label">Mol-1 Ligand File Path*</label>
                         <input type="text" class="form-control" id="${sequenceId}_filePath" placeholder="/path/to/ligand.sdf" oninput="updateSequenceDataSync('${sequenceId}', 'ligand');">
                         <small class="text-muted">PDB, SDF, MOL, or MOL2 file available to the Mol-1 runner</small>
                     </div>
                     <div id="${sequenceId}_smilesInput" style="display:none;">
-                        <label class="form-label">SMILES String*</label>
+                        <label for="${sequenceId}_smiles" class="form-label">SMILES String*</label>
                         <input type="text" class="form-control" id="${sequenceId}_smiles" placeholder="Enter SMILES notation">
                     </div>
                 </div>
@@ -708,7 +708,7 @@ function createLigandSequenceHTML(sequenceId) {
             <!-- Ligand count and description -->
             <div class="row mt-3">
                 <div class="col-md-3">
-                    <label class="form-label">Count</label>
+                    <label for="${sequenceId}_count" class="form-label">Count</label>
                     <input type="number" class="form-control" id="${sequenceId}_count" value="1" min="1" onchange="updateLigandMultimer('${sequenceId}')">
                 </div>
                 <div class="col-md-9">
@@ -2893,7 +2893,7 @@ function addSequonSite(sequenceId, sequonData, index) {
                             <button type="button" class="btn btn-outline-primary btn-sm"
                                     style="padding: 1px 4px; font-size: 10px;"
                                     onclick="openSugarDrawerPopup('${siteId}_glycan')"
-                                    title="Open SugarDrawer to draw glycan structure">
+                                    aria-label="Open SugarDrawer to draw glycan structure" title="Open SugarDrawer to draw glycan structure">
                                 <i class="fas fa-pen"></i>
                             </button>
                         </div>
@@ -3541,7 +3541,7 @@ function addGlycosylationSite(sequenceId) {
                                     <button type="button" class="btn btn-outline-primary btn-sm"
                                             style="padding: 1px 4px; font-size: 10px;"
                                             onclick="openSugarDrawerPopup('${siteId}_glycan')"
-                                            title="Open SugarDrawer to draw glycan structure">
+                                            aria-label="Open SugarDrawer to draw glycan structure" title="Open SugarDrawer to draw glycan structure">
                                         <i class="fas fa-pen"></i>
                                     </button>
                                 </div>

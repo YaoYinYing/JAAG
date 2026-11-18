@@ -3,24 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JAAG</title>
+    <title>BioNuTA — Biomolecular Input Assembler</title>
+    <meta name="description" content="Assemble biomolecular systems and generate model-ready inputs.">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="styles.css" rel="stylesheet">
+    <link href="styles.css?v=bionuta-2" rel="stylesheet">
 </head>
 <body>
-    <div class="container-fluid py-4">
-        <div class="row">
-            <div class="col-12">
-                <h1 class="text-center mb-4">
-                    JAAG: <small class="fs-2">a JSON input file Assembler for AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2 with Glycan integration</small>
-                </h1>
-            </div>
+    <header class="workbench-header">
+        <div>
+            <div class="brand-name">BioNuTA <span>Biomolecular Input Assembler</span></div>
+            <p>Assemble once. Model anywhere.</p>
         </div>
-
-        <div class="row">
-            <!-- Left Panel - Input Forms -->
-            <div class="col-lg-8">
+        <a href="https://github.com/YaoYinYing/JAAG" class="source-link">Source &amp; guide <span aria-hidden="true">↗</span></a>
+    </header>
+    <main class="workbench">
+        <h1 class="visually-hidden">Molecular input workbench</h1>
+        <div class="workbench-grid">
+            <aside class="system-outline" aria-labelledby="system-outline-title">
+                <div class="outline-heading"><span class="eyebrow">WORKSPACE</span><h2 id="system-outline-title">Molecular system</h2></div>
+                <p class="outline-intro">Build your system one entity at a time.</p>
+                <nav aria-label="System entities"><ol id="systemOutline" class="outline-list"></ol></nav>
+                <p id="outlineEmpty" class="outline-empty">No entities yet. Add a protein, ligand, ion, RNA or DNA in the editor.</p>
+                <a class="outline-settings" href="#systemSettings">System settings <span aria-hidden="true">↗</span></a>
+            </aside>
+            <section class="editor-panel" aria-label="Molecular system editor">
                 <!-- Description Panel -->
                 <div class="card mb-4">
                     <div class="card-header">
@@ -31,14 +38,14 @@
                                 aria-expanded="false"
                                 aria-controls="descriptionCollapse"
                                 style="text-decoration: none; color: inherit;">
-                            <i class="fas fa-info-circle me-2"></i><strong>About JAAG</strong>
+                            <i class="fas fa-info-circle me-2"></i><strong>About BioNuTA and JAAG</strong>
                             <i class="fas fa-chevron-down ms-2"></i>
                         </button>
                     </div>
                     <div class="collapse" id="descriptionCollapse">
                         <div class="card-body">
                         <p class="mb-3">
-                            JAAG is a web-based tool designed to assemble input files for standalone AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2.
+                            BioNuTA continues the JAAG project as a workbench to assemble input files for standalone AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2.
                         </p>
 
                         <h6>How to add glycans?</h6>
@@ -75,12 +82,12 @@
                 </div>
 
                 <!-- Basic Information -->
-                <div class="card mb-4">
+                <div class="card mb-4" id="systemSettings">
                     <div class="card-header">
-                        Basic Information
+                        System settings
                     </div>
                     <div class="card-body">
-                        <div class="row">
+                        <div class="row system-settings-grid">
                             <div class="col-md-4">
                                 <label for="jobName" class="form-label">Job Name*</label>
                                 <input type="text" class="form-control" id="jobName" placeholder="Enter job name" oninput="validateJobName(this)">
@@ -108,7 +115,7 @@
                                             data-bs-target="#advancedFunctionsCollapse"
                                             aria-expanded="false"
                                             aria-controls="advancedFunctionsCollapse"
-                                            style="font-size: 0.7rem; padding: 0rem 0.3rem;">
+                                            >
                                         <i class="fas fa-chevron-right me-1"></i>Advanced Settings
                                     </button>
                                 </div>
@@ -201,7 +208,7 @@
                 <!-- Sequences Section -->
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>Sequences</span>
+                        <span>Entities</span>
                         <div class="btn-group btn-group-sm">
                             <button type="button" class="btn btn-outline-primary" onclick="addSequence('protein')">
                                 <i class="fas fa-plus me-1"></i>Protein
@@ -305,12 +312,10 @@
                 </div>
 
 
-            </div>
+            </section>
 
-            <!-- Right Panel - JSON Output -->
-            <div class="col-lg-4">
-
-                <div class="card sticky-top" style="top: 20px;">
+            <aside class="preview-panel" aria-label="Input preview">
+                <div class="card preview-card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span id="jsonOutputLabel">AlphaFold 3 Input</span>
                         <div class="btn-group btn-group-sm">
@@ -332,12 +337,10 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div id="jsonOutput" class="json-output p-3">
-                            <span class="text-muted">Add a sequence to create a target input file</span>
-                        </div>
+                        <pre class="json-output p-3" tabindex="0" role="region" aria-label="Generated target input"><code id="jsonOutput">Add an entity to create a target input file</code></pre>
                     </div>
                     <div class="card-footer">
-                        <div id="validationStatus" class="text-muted small">
+                        <div id="validationStatus" class="text-muted small" role="status" aria-live="polite">
                             <i class="fa-regular fa-face-smile me-1"></i>Ready to generate input
                         </div>
                         <div class="text-muted mt-1" style="font-size: 0.72rem;">
@@ -345,15 +348,16 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </aside>
         </div>
-    </div>
+    </main>
 
     <!-- SugarDrawer Popup Modal -->
     <div class="modal fade" id="sugarDrawerPopupModal" tabindex="-1" aria-labelledby="sugarDrawerPopupModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl" style="max-width: 90vw;">
             <div class="modal-content" style="height: 90vh;">
                 <div class="modal-body" style="flex: 1; overflow: hidden; position: relative;">
+                    <h2 class="visually-hidden" id="sugarDrawerPopupModalLabel">SugarDrawer glycan editor</h2>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="position: absolute; top: 10px; right: 10px; z-index: 1000;"></button>
                     <div id="sugarDrawerPopupContainer" style="height: 100%;">
                         <!-- SugarDrawer will be initialized here -->
@@ -368,15 +372,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     
     <!-- Application JS -->
-    <script src="js/glycan-templates.js"></script>
+    <script src="js/glycan-templates.js?v=bionuta-2"></script>
     <script src="js/load-glycan-templates.js"></script>
     <script src="js/glycan-manager.js"></script>
     <script src="js/userccd-manager.js"></script>
     <script src="js/substituent-handler.js"></script>
     <script src="js/sugardrawer-integration.js"></script>
     <script src="js/jaag-core-loader.js"></script>
-    <script src="js/app.js"></script>
-    <script src="js/sequences.js"></script>
+    <script src="js/app.js?v=bionuta-2"></script>
+    <script src="js/sequences.js?v=bionuta-2"></script>
     <script src="js/embedded-userccd-data.js"></script>
     <script src="js/enhanced-glycan-converter.js"></script>
     <script src="js/enhanced-glycoct-parser.js"></script>
@@ -384,5 +388,6 @@
     <script src="js/json-generator.js"></script>
     <script src="js/share-state.js"></script>
     <script src="js/input-import.js"></script>
+    <script src="js/workbench.js"></script>
 </body>
 </html>

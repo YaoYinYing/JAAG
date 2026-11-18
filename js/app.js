@@ -319,7 +319,7 @@ function updateOutputTarget() {
  * @param {string} jobName - The job name to append to title
  */
 function updatePageTitle(jobName) {
-    const baseTitle = 'JAAG';
+    const baseTitle = 'BioNuTA';
     if (jobName && jobName.trim() !== '') {
         document.title = `${baseTitle} - ${jobName}`;
     } else {

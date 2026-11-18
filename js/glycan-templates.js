@@ -104,7 +104,6 @@ function createTemplateSelector(containerId, onTemplateSelect) {
     }
 
     const templateManager = window.glycanTemplateManager || new GlycanTemplateManager();
-    const options = templateManager.getTemplateOptions();
 
     // Generate unique IDs for this selector instance
     const selectId = `${containerId}_select`;
@@ -116,9 +115,6 @@ function createTemplateSelector(containerId, onTemplateSelect) {
                     Glycan Templates
                 </label>
                 <select class="form-select" id="${selectId}" onchange="applySelectedTemplate('${selectId}')">
-                    ${options.map(opt =>
-                        `<option value="${opt.value}">${opt.text}</option>`
-                    ).join('')}
                 </select>
                 <small class="text-muted">Select a predefined glycan structure to auto-fill GlycoCT (optional)</small>
             </div>
@@ -127,11 +123,11 @@ function createTemplateSelector(containerId, onTemplateSelect) {
             </div>
             <div class="col-md-5">
                 <div class="d-flex align-items-center gap-1 mb-1">
-                    <label class="form-label mb-0">Apply GlycoCT to all</label>
+                    <label for="${selectId}_glycoct" class="form-label mb-0">Apply GlycoCT to all</label>
                     <button type="button" class="btn btn-outline-primary btn-sm"
                             style="padding: 1px 4px; font-size: 10px;"
                             onclick="drawAndApplyToAll('${selectId}')"
-                            title="Open SugarDrawer to draw glycan structure">
+                            aria-label="Open SugarDrawer to draw glycan structure" title="Open SugarDrawer to draw glycan structure">
                         <i class="fas fa-pen"></i>
                     </button>
                 </div>
@@ -146,6 +142,7 @@ function createTemplateSelector(containerId, onTemplateSelect) {
 
     // Setup event listener
     const selectElement = document.getElementById(selectId);
+    if (selectElement) updateTemplateOptions(selectElement, templateManager);
     if (selectElement && onTemplateSelect) {
         selectElement.addEventListener('change', function() {
             if (this.value) {
@@ -155,6 +152,18 @@ function createTemplateSelector(containerId, onTemplateSelect) {
         });
     }
 
+}
+
+function updateTemplateOptions(select, templateManager) {
+    const selected = select.value;
+    const options = templateManager.getTemplateOptions().map(item => {
+        const option = document.createElement('option');
+        option.value = item.value;
+        option.textContent = item.text;
+        return option;
+    });
+    select.replaceChildren(...options);
+    if (options.some(option => option.value === selected)) select.value = selected;
 }
 
 /**
@@ -749,14 +758,11 @@ function loadGlycanTemplateData(excelData) {
  */
 function refreshAllTemplateSelectors() {
     // Find all template selector containers
-    const containers = document.querySelectorAll('[id*="_templateSelector"]');
+    const containers = document.querySelectorAll('[id$="_templateSelector"]');
     
     containers.forEach(container => {
-        if (container.innerHTML.trim() !== '') {
-            // Recreate the selector
-            const containerId = container.id;
-            window.createTemplateSelector(containerId);
-        }
+        const select = document.getElementById(`${container.id}_select`);
+        if (select) updateTemplateOptions(select, window.glycanTemplateManager);
     });
     
 }

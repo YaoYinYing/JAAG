@@ -140,3 +140,74 @@ input::-ms-input-placeholder,
 textarea::-ms-input-placeholder {
     text-transform: none !important;
 }
+/* BioNuTA workbench shell. Scientific forms retain their existing controls. */
+:root {
+    --ink: #263a36;
+    --muted: #586b64;
+    --surface: #fff;
+    --canvas: #f3f5ef;
+    --line: #d9e2d9;
+    --accent: #326b58;
+}
+body { background: var(--canvas); color: var(--ink); }
+.workbench-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem clamp(1rem, 2.5vw, 2.5rem);
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+}
+.brand-name { font-size: 1.5rem; font-weight: 750; letter-spacing: -.035em; color: #234e40; }
+.brand-name span { display: inline-block; margin-left: .6rem; font-size: .8rem; font-weight: 600; letter-spacing: 0; color: var(--muted); }
+.workbench-header p { margin: .1rem 0 0; font-size: .82rem; color: var(--muted); }
+.source-link { color: var(--accent); font-size: .85rem; font-weight: 600; white-space: nowrap; }
+.workbench { padding: clamp(1rem, 2vw, 2rem); }
+.workbench-grid { display: grid; grid-template-columns: 12rem minmax(0, 1fr) minmax(20rem, 28rem); gap: 1.25rem; align-items: start; max-width: 120rem; margin: auto; }
+.system-outline { position: sticky; top: 1.25rem; min-width: 0; }
+.eyebrow { color: var(--muted); font-size: .7rem; font-weight: 700; letter-spacing: .09em; }
+.outline-heading h2 { margin: .4rem 0; font-size: 1.15rem; font-weight: 700; }
+.outline-intro, .outline-empty { font-size: .85rem; line-height: 1.45; color: var(--muted); }
+.outline-list { list-style: none; margin: 1rem 0; padding: 0; }
+.outline-list a { display: block; padding: .65rem .75rem; margin-bottom: .35rem; border-left: 3px solid #a8c4b1; background: #fff; border-radius: .15rem .5rem .5rem .15rem; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.outline-list a:hover { background: #e4efe5; }
+.outline-entity-type { display: block; font-size: .67rem; letter-spacing: .07em; font-weight: 700; color: var(--accent); }
+.outline-entity-detail { display: block; font-size: .87rem; font-weight: 600; }
+.outline-settings { display: inline-block; margin-top: .5rem; color: var(--accent); font-size: .85rem; font-weight: 600; }
+.editor-panel, .preview-panel { min-width: 0; }
+.workbench .card { border-color: var(--line); border-radius: .65rem; background: var(--surface); box-shadow: 0 1px 2px #243b2b0a; }
+.workbench .card-header { background: #f9fbf8; border-color: var(--line); font-weight: 650; padding: .8rem 1rem; }
+.workbench .card-footer { background: #f9fbf8; border-color: var(--line); }
+.workbench .btn-outline-primary { --bs-btn-color: #285d4b; --bs-btn-border-color: #9ab5a5; --bs-btn-hover-bg: #326b58; --bs-btn-hover-border-color: #326b58; --bs-btn-active-bg: #285d4b; --bs-btn-active-border-color: #285d4b; }
+.workbench .form-control:focus, .workbench .form-select:focus { border-color: #619b7f; box-shadow: 0 0 0 .2rem #619b7f40; }
+.workbench :focus-visible { outline: 3px solid #398364; outline-offset: 2px; }
+.preview-card { position: sticky; top: 1.25rem; }
+.preview-card .card-header { flex-wrap: wrap; gap: .65rem; }
+.preview-card .btn-group { flex-wrap: wrap; }
+.json-output { margin: 0; color: #d9ebe2; background: #243b35; border: 0; font: .78rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: min(60vh, 45rem); overflow: auto; }
+@media (max-width: 1199px) {
+    .workbench-grid { grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); }
+    .system-outline { position: static; grid-column: 1 / -1; }
+    .outline-list { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+    .outline-list a { margin: 0; }
+}
+@media (max-width: 767px) {
+    .workbench-grid { grid-template-columns: minmax(0, 1fr); }
+    .system-outline { grid-column: auto; }
+    .preview-card { position: static; }
+    .workbench .card-header { flex-wrap: wrap; gap: .6rem; }
+    .workbench .card-header .btn-group { flex-wrap: wrap; }
+    .brand-name span { display: block; margin: 0; }
+    .source-link { align-self: flex-start; }
+    .json-output { max-height: 25rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+.system-settings-grid > div { flex: 1 1 12rem; width: auto; min-width: 0; }
+@media (max-width: 767px) {
+    .workbench .btn { min-height: 2.5rem; }
+    .uniprot-import { flex-wrap: wrap; gap: .4rem; }
+    .uniprot-import .input-group { max-width: none !important; }
+}
