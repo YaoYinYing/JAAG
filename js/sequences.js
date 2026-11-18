@@ -775,6 +775,7 @@ function updateSequenceDataSync(sequenceId, type) {
 async function updateSequenceData(sequenceId, type) {
     const sequence = app.sequences.find(seq => seq.id === sequenceId);
     if (!sequence) return;
+    const update = sequence.updateGeneration = (sequence.updateGeneration || 0) + 1;
     
     // Always allow updating sequence data when user changes inputs
     
@@ -805,7 +806,10 @@ async function updateSequenceData(sequenceId, type) {
             break;
         case 'ligand':
             // Always rebuild ligand data from form to ensure GlycoCT input is processed
-            sequence.data = await buildLigandData(sequenceId, id);
+            const result = await buildLigandData(sequenceId, id);
+            if (sequence.updateGeneration !== update || !app.sequences.includes(sequence)) return;
+            sequence.data = result.data;
+            sequence.bondedAtomPairs = result.bonds;
             break;
     }
 
@@ -1010,16 +1014,16 @@ async function buildLigandData(sequenceId, id) {
         const ligandData = { ligand: {} };
 
         // Use array of chain IDs instead of duplicating entries
-        ligandData.ligand.id = sequenceObj.multimerChainIds;
+        ligandData.ligand.id = [...sequenceObj.multimerChainIds];
 
         // Process ligand type data
-        await addLigandTypeData(sequenceId, ligandData.ligand);
+        const bonds = await addLigandTypeData(sequenceId, ligandData.ligand);
 
         // Add description if provided (put at end for consistent JSON order)
         const description = document.getElementById(`${sequenceId}_description`)?.value?.trim();
         if (description) ligandData.ligand.description = description;
 
-        return ligandData;
+        return { data: ligandData, bonds };
     } else {
         // Single chain ligand
         const data = { ligand: {} };
@@ -1027,7 +1031,7 @@ async function buildLigandData(sequenceId, id) {
         if (id) data.ligand.id = id;
 
         // Process ligand type data
-        await addLigandTypeData(sequenceId, data.ligand);
+        const bonds = await addLigandTypeData(sequenceId, data.ligand);
 
         // Add description if provided (put at end for consistent JSON order)
         const description = document.getElementById(`${sequenceId}_description`)?.value?.trim();
@@ -1037,15 +1041,16 @@ async function buildLigandData(sequenceId, id) {
             window.app.addToDebugLog('SUCCESS', `Ligand data created with ${data.ligand.ccdCodes.length} CCD codes`);
         }
         
-        return data;
+        return { data, bonds };
     }
 }
 
 async function addLigandTypeData(sequenceId, ligandObj) {
+    const generatedBonds = [];
     // Check if ligand type element exists
     const ligandTypeElement = document.getElementById(`${sequenceId}_ligandType`);
     if (!ligandTypeElement) {
-        return;
+        return generatedBonds;
     }
     
     const ligandType = ligandTypeElement.value;
@@ -1088,7 +1093,7 @@ async function addLigandTypeData(sequenceId, ligandObj) {
                     if (!validation.valid) {
                         // Display validation errors inline
                         displayGlycoCTValidationErrors(`${sequenceId}_glycoCT`, validation);
-                        return; // Exit early without processing
+                        throw new Error('Invalid ligand GlycoCT');
                     }
                 }
 
@@ -1154,60 +1159,20 @@ async function addLigandTypeData(sequenceId, ligandObj) {
                         }
                     }
 
-                    // Add bonded atom pairs if they exist (always enabled)
-                    if (additionalBonds && additionalBonds.length > 0) {
-                        // Remove existing glycan-generated bonds for these chain IDs to prevent duplicates
-                        for (const chainId of chainIds) {
-                            window.app.bondedAtomPairs = window.app.bondedAtomPairs.filter(bond => {
-                                // Keep manual bonds (objects with id property)
-                                if (bond.id !== undefined) {
-                                    return true;
-                                }
-                                // Remove glycan bonds that match this ligand's chain
-                                if (Array.isArray(bond) && bond[0] && bond[1]) {
-                                    return !(bond[0][0] === chainId && bond[1][0] === chainId);
-                                }
-                                return true;
-                            });
-                        }
-                        // For multimers, generate bondedAtomPairs for each chain ID
-                        for (const chainId of chainIds) {
-                            // Create bondedAtomPairs with the specific chain ID for this ligand instance
-                            const chainSpecificBonds = additionalBonds.map(bond => {
-                                // Replace the chain ID in each bond pair
-                                return [
-                                    [chainId, bond[0][1], bond[0][2]], // [chainId, residueId, atomName]
-                                    [chainId, bond[1][1], bond[1][2]]  // [chainId, residueId, atomName]
-                                ];
-                            });
-
-                            window.app.bondedAtomPairs.push(...chainSpecificBonds);
-                        }
-
-                    } else {
+                    // Generated bonds belong to this ligand, never the shared manual bond list.
+                    for (const chainId of chainIds) {
+                        generatedBonds.push(...additionalBonds.map(bond => [
+                            [chainId, bond[0][1], bond[0][2]],
+                            [chainId, bond[1][1], bond[1][2]]
+                        ]));
                     }
                 } catch (error) {
-                    // Fallback: just leave the field empty or show error
-                }
-            } else {
-                // GlycoCT is empty - remove any glycan-generated bonds for this ligand's chain IDs
-                const chainIds = Array.isArray(ligandObj.id) ? ligandObj.id : [ligandObj.id || 'L'];
-                for (const chainId of chainIds) {
-                    window.app.bondedAtomPairs = window.app.bondedAtomPairs.filter(bond => {
-                        // Keep manual bonds (objects with id property)
-                        if (bond.id !== undefined) {
-                            return true;
-                        }
-                        // Remove glycan bonds that match this ligand's chain
-                        if (Array.isArray(bond) && bond[0] && bond[1]) {
-                            return !(bond[0][0] === chainId && bond[1][0] === chainId);
-                        }
-                        return true;
-                    });
+                    throw new Error(`Cannot convert ligand GlycoCT: ${error.message}`);
                 }
             }
             break;
     }
+    return generatedBonds;
 }
 
 // Placeholder functions for modifications
@@ -1258,72 +1223,6 @@ function collectDNAModifications(sequenceId) {
     return modifications;
 }
 
-/**
- * Clean up bonded atom pairs by removing bonds for chain IDs that don't exist in the JSON output
- */
-function cleanupOrphanedBondedAtomPairs() {
-    if (!window.app || !window.app.bondedAtomPairs || window.app.bondedAtomPairs.length === 0) {
-        return;
-    }
-
-    // Get all valid chain IDs from the current JSON output
-    const validChainIds = new Set();
-
-    if (app.sequences) {
-        app.sequences.forEach(seq => {
-            if (seq.data) {
-                // Check protein sequences
-                if (seq.data.protein && seq.data.protein.id) {
-                    if (Array.isArray(seq.data.protein.id)) {
-                        seq.data.protein.id.forEach(id => validChainIds.add(id));
-                    } else {
-                        validChainIds.add(seq.data.protein.id);
-                    }
-                }
-                // Check RNA sequences
-                if (seq.data.rna && seq.data.rna.id) {
-                    if (Array.isArray(seq.data.rna.id)) {
-                        seq.data.rna.id.forEach(id => validChainIds.add(id));
-                    } else {
-                        validChainIds.add(seq.data.rna.id);
-                    }
-                }
-                // Check DNA sequences
-                if (seq.data.dna && seq.data.dna.id) {
-                    if (Array.isArray(seq.data.dna.id)) {
-                        seq.data.dna.id.forEach(id => validChainIds.add(id));
-                    } else {
-                        validChainIds.add(seq.data.dna.id);
-                    }
-                }
-                // Check ligand sequences
-                if (seq.data.ligand && seq.data.ligand.id) {
-                    if (Array.isArray(seq.data.ligand.id)) {
-                        seq.data.ligand.id.forEach(id => validChainIds.add(id));
-                    } else {
-                        validChainIds.add(seq.data.ligand.id);
-                    }
-                }
-            }
-        });
-    }
-
-    // Filter out bonds that reference non-existent chain IDs
-    window.app.bondedAtomPairs = window.app.bondedAtomPairs.filter(bond => {
-        // Keep manual bonds (objects with id property)
-        if (bond.id !== undefined) {
-            return true;
-        }
-        // For glycan bonds (arrays), check if both chain IDs exist
-        if (Array.isArray(bond) && bond[0] && bond[1]) {
-            const chain1 = bond[0][0];
-            const chain2 = bond[1][0];
-            return validChainIds.has(chain1) && validChainIds.has(chain2);
-        }
-        return true;
-    });
-}
-
 function removeSequence(sequenceId) {
     // Remove from DOM
     const element = document.getElementById(`sequence_${sequenceId}`);
@@ -1333,9 +1232,6 @@ function removeSequence(sequenceId) {
 
     // Remove from sequences array
     app.sequences = app.sequences.filter(seq => seq.id !== sequenceId);
-
-    // Clean up orphaned bonded atom pairs after removing sequence
-    cleanupOrphanedBondedAtomPairs();
 
     // Show placeholder if no sequences left
     const container = document.getElementById('sequencesContainer');
@@ -1365,9 +1261,6 @@ function updateLigandMultimer(sequenceId) {
     const chainListSpan = document.getElementById(`${sequenceId}_chainList`);
 
     if (!countInput || !chainIdInput || !multimerDiv || !chainListSpan) return;
-
-    // Clean up old bondedAtomPairs before updating
-    cleanupSequenceBondedAtomPairs(sequenceId);
 
     const count = parseInt(countInput.value) || 1;
     const baseId = chainIdInput.value || 'L';
@@ -2556,51 +2449,6 @@ function generateLigandChainIds(baseId, count) {
     return chains;
 }
 
-// Clean up bondedAtomPairs related to a specific sequence when count changes
-function cleanupSequenceBondedAtomPairs(sequenceId) {
-    if (!window.app || !window.app.bondedAtomPairs) return;
-
-    // Find the sequence object to get its current and old chain IDs
-    const sequenceObj = app.sequences.find(seq => seq.id === sequenceId);
-    if (!sequenceObj) return;
-
-    // Get all possible chain IDs that this sequence might have used
-    const currentChainIds = sequenceObj.multimerChainIds || [];
-    const baseId = document.getElementById(`${sequenceId}_id`)?.value || 'L';
-
-    // Create a set of all possible chain IDs this sequence could have generated
-    const possibleChainIds = new Set();
-
-    // Add current chain IDs
-    currentChainIds.forEach(id => possibleChainIds.add(id));
-
-    // Add potential old chain IDs (up to reasonable count)
-    for (let i = 0; i < 20; i++) {
-        const suffix = generateAlphabeticSuffix(i);
-        possibleChainIds.add(`${baseId}${suffix}`);
-        possibleChainIds.add(baseId); // also include base ID without suffix
-    }
-
-    // Remove bondedAtomPairs that reference any of these chain IDs
-    const initialCount = window.app.bondedAtomPairs.length;
-    window.app.bondedAtomPairs = window.app.bondedAtomPairs.filter(bond => {
-        if (Array.isArray(bond) && bond.length === 2) {
-            // Direct array format: [["EntityID", ResidueID, "AtomName"], ["EntityID", ResidueID, "AtomName"]]
-            const chain1 = bond[0]?.[0];
-            const chain2 = bond[1]?.[0];
-
-            // Keep if neither chain ID matches this sequence's possible IDs
-            return !possibleChainIds.has(chain1) && !possibleChainIds.has(chain2);
-        }
-        // Keep other formats as-is
-        return true;
-    });
-
-    const removedCount = initialCount - window.app.bondedAtomPairs.length;
-    if (removedCount > 0) {
-    }
-}
-
 // Update multimer chains display and data
 function updateMultimerChains(sequenceId) {
     const countInput = document.getElementById(`${sequenceId}_count`);
@@ -2609,9 +2457,6 @@ function updateMultimerChains(sequenceId) {
     const chainListSpan = document.getElementById(`${sequenceId}_chainList`);
 
     if (!countInput || !chainIdInput || !multimerDiv || !chainListSpan) return;
-
-    // Clean up old bondedAtomPairs before updating
-    cleanupSequenceBondedAtomPairs(sequenceId);
 
     const count = parseInt(countInput.value) || 1;
     const baseId = chainIdInput.value || 'A';
