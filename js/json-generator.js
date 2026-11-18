@@ -3,7 +3,7 @@
 /**
  * Enhanced JSON generation with proper sequence data integration
  */
-AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
+AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function({ includeDerived = true } = {}) {
     const jobName = document.getElementById('jobName').value || 'Untitled_Job';
     const version = parseInt(document.getElementById('version').value);
     // Get model seeds from multiple seeds input
@@ -33,6 +33,29 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
                 if (!Number.isInteger(position) || position < 1 || !residue || !atom || !value('chainId') || !value('glycan')) {
                     throw new Error(`Complete or remove the glycosylation site on ${seq.id}`);
                 }
+            }
+        }
+    }
+
+    for (const seq of this.sequences.filter(item => ['protein', 'rna', 'dna'].includes(item.type))) {
+        const modifications = document.getElementById(`${seq.id}_${seq.type === 'protein' ? 'ptms' : 'modifications'}`);
+        const prefix = seq.type === 'protein' ? 'ptm_' : `${seq.type}mod_`;
+        for (const card of modifications?.querySelectorAll(`.card[id^="${prefix}"]`) || []) {
+            const position = Number(document.getElementById(`${card.id}_position`)?.value);
+            const type = document.getElementById(`${card.id}_type`)?.value?.trim();
+            if (!Number.isInteger(position) || position < 1 || !type) {
+                throw new Error(`Complete or remove the modification on ${seq.id}`);
+            }
+        }
+        if (seq.type !== 'protein') continue;
+        const templates = document.getElementById(`${seq.id}_templates`);
+        for (const card of templates?.querySelectorAll('.card[id^="template_"]') || []) {
+            const value = field => document.getElementById(`${card.id}_${field}`)?.value?.trim() || '';
+            const path = document.getElementById(`${card.id}_sourceTypePath`)?.checked;
+            const source = value(path ? 'mmcifPath' : 'mmcif');
+            const indices = /^\d+(?:\s*,\s*\d+)*$/;
+            if (!source || !indices.test(value('queryIndices')) || !indices.test(value('templateIndices'))) {
+                throw new Error(`Complete or remove the template on ${seq.id}; indices must be comma-separated integers`);
             }
         }
     }
@@ -68,7 +91,7 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
                     sequences.push(seqData);
 
                     // Process glycosylation sites for protein multimers
-                    if (seq.type === 'protein') {
+                    if (includeDerived && seq.type === 'protein') {
                         const hasManualSites = seq.data._glycosylationSites && seq.data._glycosylationSites.length > 0;
                         const hasSequonSites = seq.data._sequonSites && seq.data._sequonSites.length > 0;
 
@@ -98,7 +121,7 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
                     const hasManualSites = seq.data._glycosylationSites && seq.data._glycosylationSites.length > 0;
                     const hasSequonSites = seq.data._sequonSites && seq.data._sequonSites.length > 0;
                     
-                    if (seq.type === 'protein' && (hasManualSites || hasSequonSites)) {
+                    if (includeDerived && seq.type === 'protein' && (hasManualSites || hasSequonSites)) {
                         try {
                             const glycoResult = await processGlycosylationSites(seq.data._proteinSequenceId, seqData.protein.id);
                             if (glycoResult.ligands.length > 0 || glycoResult.bonds.length > 0) {
@@ -162,7 +185,7 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
     
     // Collect bondedAtomPairs from glycan sequences
     this.sequences.forEach(seq => {
-        if (seq.type === 'ligand' && seq.bondedAtomPairs && Array.isArray(seq.bondedAtomPairs)) {
+        if (includeDerived && seq.type === 'ligand' && seq.bondedAtomPairs && Array.isArray(seq.bondedAtomPairs)) {
             seq.bondedAtomPairs.forEach(bond => {
                 validBonds.push(bond);
             });

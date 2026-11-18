@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { captureInputDependencies, resolveInputDependencies } from '../shared/input-dependencies.mjs';
+import { captureInputDependencies, listInputDependencySlots, resolveInputDependencies } from '../shared/input-dependencies.mjs';
 import { serialize } from '../shared/jaag-schema.mjs';
 
 function documentWithFiles() {
@@ -34,6 +34,7 @@ test('dependency capture replaces private paths with safe stable slots and verif
     assert.ok(captured.files.every(file => /^dependencies\/dep-[0-9a-f]{24}\/same_name\.a3m$/.test(file.path)));
     assert.ok(resolverCalls.every(slot => Object.keys(slot).sort().join(',') === 'id,kind,slot'));
     assert.doesNotMatch(JSON.stringify(resolverCalls), /private|https:/);
+    assert.deepEqual(await listInputDependencySlots(source), resolverCalls);
     const saved = new Map(captured.files.map(file => [file.id, file.bytes]));
     const restored = await resolveInputDependencies(captured.document, captured.dependencies, async item => saved.get(item.id));
     assert.deepEqual(restored.document, captured.document);

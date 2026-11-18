@@ -45,7 +45,10 @@ class AlphaFold3Generator {
         this.generation = (this.generation || 0) + 1;
         this.lastValidation = null;
         const status = document.getElementById('validationStatus');
-        if (status) status.textContent = 'Updating input preview…';
+        if (status) {
+            status.textContent = 'Updating input preview…';
+            status.className = 'text-muted small';
+        }
         clearTimeout(this.generateTimeout);
         this.generateTimeout = setTimeout(() => {
             this.generateJSON();
@@ -118,9 +121,9 @@ class AlphaFold3Generator {
         }
     }
 
-    async buildSupersetDocument(target = this.getOutputTarget()) {
+    async buildSupersetDocument(target = this.getOutputTarget(), options = {}) {
         // Keep the mature DOM collector as a migration bridge; adapters consume only the neutral document.
-        const collectedJob = await this.buildAlphaFold3JSON();
+        const collectedJob = await this.buildAlphaFold3JSON(options);
         const core = await window.JAAGCoreReady;
         return { collectedJob, inputDocument: core.fromAlphaFold3(collectedJob, { target }), core };
     }
@@ -166,7 +169,10 @@ class AlphaFold3Generator {
             if (generation !== this.generation || this.isRestoringSharedInput) return;
             this.lastValidation = { valid: false, errors: [error.message], warnings: [] };
             const status = document.getElementById('validationStatus');
-            if (status) status.textContent = `Error: ${error.message}`;
+            if (status) {
+                status.textContent = `Error: ${error.message}`;
+                status.className = 'text-danger small';
+            }
             const outputElement = document.getElementById('jsonOutput');
             if (outputElement) outputElement.textContent = `Error: ${error.message}`;
         }

@@ -44,6 +44,9 @@ document for a host that can supply file bytes. `captureInputDependencies`
 enumerates path-backed MSA, template, ligand, and custom CCD slots. Its resolver
 receives a logical ID, kind, and slot, never the original path or URL; it must
 explicitly return `{name, mime, bytes}` with `bytes` as a `Uint8Array`. The
+host can inspect the same slot descriptors first with `listInputDependencySlots`.
+IDs derive from the neutral entity key and field; template entries use their
+array index. Reordering template entries can therefore change their IDs. The
 result contains a copied document with safe runner-relative paths, a manifest
 with sizes and SHA-256 digests, and separate bytes. The source document is not
 modified and the module never fetches a path or URL.

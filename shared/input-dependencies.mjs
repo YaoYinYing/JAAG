@@ -72,6 +72,12 @@ function mimeType(value) {
         ? value : 'application/octet-stream';
 }
 
+/** Describe required slots without exposing their current path values. */
+export async function listInputDependencySlots(document) {
+    const slots = await slotsFor(cloneDocument(document));
+    return slots.map(slot => ({ id: slot.id, kind: slot.kind, slot: [...slot.key] }));
+}
+
 /** Capture a valid neutral document and replace path references with safe, host-bound slots. */
 export async function captureInputDependencies(document, resolve) {
     if (typeof resolve !== 'function') throw new TypeError('A dependency resolver is required');
