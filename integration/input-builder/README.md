@@ -84,6 +84,12 @@ as shown, including changes made by other capabilities.
   The host must invalidate only its own output, and must not submit a task
   automatically. The example host does not persist snapshots.
 
+Revisions increase on edits and successful restores for the lifetime of one
+mounted instance; validation, snapshots and materialization use that same
+instance-scoped counter. Do not compare revisions from different mounts. A
+host that destroys or remounts a builder must also change its own session token
+when checking asynchronous results.
+
 Snapshots carry builder/version, neutral document schema/version, target,
 revision, the `jaag-superset` document, glycan authoring source and custom CCD
 editor information, the count of explicitly authored bonds, plus dependency

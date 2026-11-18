@@ -406,3 +406,136 @@ test('automatic glycan CCDs do not overwrite a manual component with the same ID
     await expect(page.locator('#ownership')).toContainText('builder');
     expect(await page.locator('#output').textContent()).toContain('data_MANUAL');
 });
+
+test('keyboard opens and dismisses the SugarDrawer dialog and returns focus', async ({ page }) => {
+    const editor = await openBuilder(page, 'alphafold3');
+    await editor.locator("button[onclick=\"addSequence('ligand')\"]").click();
+    const opener = editor.getByRole('button', { name: 'Open SugarDrawer to draw glycan structure' });
+    await editor.locator('#sugarDrawerPopupModal').evaluate(modal => modal.addEventListener('shown.bs.modal', () => { modal.dataset.testShown = 'true'; }, { once: true }));
+    await opener.focus();
+    await page.keyboard.press('Enter');
+    await expect(editor.locator('#sugarDrawerPopupModal')).toHaveAttribute('data-test-shown', 'true');
+    await expect(editor.getByRole('dialog', { name: 'SugarDrawer glycan editor' })).toBeVisible();
+    const close = editor.getByRole('button', { name: 'Close', exact: true });
+    await close.focus();
+    await page.keyboard.press('Escape');
+    await expect(editor.getByRole('dialog', { name: 'SugarDrawer glycan editor' })).not.toBeVisible();
+    await expect(opener).toBeFocused();
+    await editor.locator('#sugarDrawerPopupModal').evaluate(modal => {
+        delete modal.dataset.testShown;
+        modal.addEventListener('shown.bs.modal', () => { modal.dataset.testShown = 'true'; }, { once: true });
+    });
+    await page.keyboard.press('Enter');
+    await expect(editor.locator('#sugarDrawerPopupModal')).toHaveAttribute('data-test-shown', 'true');
+    const drawer = editor.frameLocator('#sugarDrawerPopupFrame');
+    await drawer.getByRole('button', { name: 'Load Structure' }).focus();
+    await page.keyboard.press('Escape');
+    await expect(editor.getByRole('dialog', { name: 'SugarDrawer glycan editor' })).not.toBeVisible();
+    await expect(opener).toBeFocused();
+});
+
+test('standalone and embedded workbench initialize without uncaught page errors', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto('/index.html');
+    await expect(page.locator('#outputTarget')).toBeVisible();
+    await openBuilder(page, 'alphafold3');
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    expect(errors).toEqual([]);
+});
+
+test('hostile chain IDs in native imports and shared hydration remain inert', async ({ page }) => {
+    const hostile = 'A\"><img src=x onerror="window.__chainInjected=1">';
+    await page.goto('/index.html');
+    const input = {
+        name: 'Synthetic_Test', modelSeeds: [1], dialect: 'alphafold3', version: 4,
+        sequences: [{ protein: { id: hostile, sequence: 'MNNSTAA' } }],
+        bondedAtomPairs: [[[hostile, 1, 'CA'], [hostile, 2, 'N']]]
+    };
+    await page.locator('#restoreInputTarget').selectOption('alphafold3');
+    await page.locator('#restoreInputFile').setInputFiles({ name: 'hostile.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(input)) });
+    await expect(page.locator('#seq_1_id')).toHaveValue(hostile);
+    await expect(page.locator('#bond_1_chain1_list option')).toHaveCount(1);
+    expect(await page.locator('#bond_1_chain1_list option').first().getAttribute('value')).toBe(hostile);
+    await expect(page.locator('#bondedAtomPairsContainer img')).toHaveCount(0);
+    expect(await page.evaluate(() => window.__chainInjected || 0)).toBe(0);
+    await page.evaluate(async hostileId => {
+        const document = { schema: 'jaag-superset', schemaVersion: 1, target: 'alphafold3', options: { alphafoldVersion: 4 },
+            job: { name: 'Synthetic_Test', seeds: [1], entities: [{ key: 'entity-1', type: 'protein', chainIds: [hostileId], sequence: 'MNNSTAA' }],
+                bonds: [{ left: { chainId: hostileId, position: 1, atom: 'CA' }, right: { chainId: hostileId, position: 2, atom: 'N' } }] } };
+        await window.restoreJAAGDocument(document);
+    }, hostile);
+    await page.evaluate(() => window.refreshBondedAtomPairDropdowns());
+    await expect(page.locator('#bond_1_chain1_list option')).toHaveCount(1);
+    expect(await page.locator('#bond_1_chain1_list option').first().getAttribute('value')).toBe(hostile);
+    await expect(page.locator('#bondedAtomPairsContainer img')).toHaveCount(0);
+    expect(await page.evaluate(() => window.__chainInjected || 0)).toBe(0);
+});
+
+test('different restores advance the mounted revision and match output metadata', async ({ page }) => {
+    await page.goto('/integration/input-builder/harness.html');
+    const result = await page.evaluate(async () => {
+        const { mount } = await import('/integration/input-builder/index.mjs');
+        const holder = document.createElement('div'); document.body.append(holder);
+        const builder = await mount(holder, { target: 'alphafold3' });
+        const revisions = [];
+        builder.subscribe(event => revisions.push(event.revision));
+        const w = holder.querySelector('iframe').contentWindow;
+        w.addSequence('protein');
+        const sequence = w.document.getElementById('seq_1_sequence');
+        const set = value => { sequence.value = value; sequence.dispatchEvent(new Event('input', { bubbles: true })); };
+        set('AAAA'); const first = await builder.materialize();
+        set('CCCC'); const second = await builder.materialize();
+        await builder.restore(first.snapshot); const restoredFirst = await builder.materialize();
+        await builder.restore(second.snapshot); const restoredSecond = await builder.materialize();
+        const validation = await builder.validate();
+        builder.destroy();
+        return { first: restoredFirst.revision, second: restoredSecond.revision, firstSnapshot: restoredFirst.snapshot.revision,
+            secondSnapshot: restoredSecond.snapshot.revision, validation: validation.revision,
+            firstHash: restoredFirst.output.sha256, secondHash: restoredSecond.output.sha256, revisions };
+    });
+    expect(result.second).toBeGreaterThan(result.first);
+    expect(result.firstSnapshot).toBe(result.first);
+    expect(result.secondSnapshot).toBe(result.second);
+    expect(result.validation).toBe(result.second);
+    expect(result.firstHash).not.toBe(result.secondHash);
+    expect(result.revisions.at(-1)).toBe(result.second);
+    expect(result.revisions.every((revision, index, all) => index === 0 || revision > all[index - 1])).toBe(true);
+});
+
+test('sequence visualization treats imported text as text in every highlighting mode', async ({ page }) => {
+    await page.goto('/index.html');
+    const result = await page.evaluate(() => {
+        window.addSequence('protein');
+        const value = '<img src=x onerror=window.__sequenceInjected=1>';
+        document.getElementById('seq_1_sequence').value = value;
+        const results = [];
+        for (const draw of [
+            () => window.updateSequenceVisualization('seq_1'),
+            () => window.updateSequenceVisualMarking('seq_1', value, [1]),
+            () => window.updateSequenceVisualWithGlycosylation('seq_1', value, [1]),
+            () => window.updateSequenceVisualWithSequons('seq_1', value, [1], [2], [3])
+        ]) {
+            draw();
+            const viz = document.getElementById('seq_1_sequenceViz');
+            results.push({ images: viz.querySelectorAll('img').length, literal: viz.textContent.includes('<') });
+        }
+        return { results, injected: window.__sequenceInjected || 0, input: document.getElementById('seq_1_sequence').value };
+    });
+    expect(result.results).toEqual(Array.from({ length: 4 }, () => ({ images: 0, literal: true })));
+    expect(result.injected).toBe(0);
+    expect(result.input).toContain('<img');
+});
+
+test('narrow embedded SugarDrawer can select and export a structure', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const editor = await openBuilder(page, 'alphafold3');
+    await editor.locator("button[onclick=\"addSequence('ligand')\"]").click();
+    await editor.getByRole('button', { name: 'Open SugarDrawer to draw glycan structure' }).click();
+    const drawer = editor.frameLocator('#sugarDrawerPopupFrame');
+    await drawer.getByRole('button', { name: 'Load Structure' }).click();
+    await drawer.getByText('Core', { exact: true }).first().click();
+    await drawer.getByRole('button', { name: 'Export & Close' }).click();
+    await expect(editor.locator('#seq_2_glycoCT')).toHaveValue(/RES/);
+});

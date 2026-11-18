@@ -13,6 +13,7 @@ export async function mount(container, { target, editorURL = DEFAULT_EDITOR.href
     let current = null;
     let destroyed = false;
     let restoring = false;
+    let revision = 0;
     const subscribers = new Set();
     const frames = new Set();
     const operations = new Set();
@@ -100,7 +101,7 @@ export async function mount(container, { target, editorURL = DEFAULT_EDITOR.href
             select.value = target;
             select.disabled = true;
             child.app.updateOutputTargetUI();
-            record.onChange = event => { if (current === record && !destroyed) notify(event.detail?.revision); };
+            record.onChange = () => { if (current === record && !destroyed) notify(++revision); };
             child.document.addEventListener('bionuta-change', record.onChange);
             const resize = () => {
                 if (record.raf) cancelAnimationFrame(record.raf);
@@ -166,19 +167,22 @@ export async function mount(container, { target, editorURL = DEFAULT_EDITOR.href
         async validate() {
             return run(async () => {
             const record = requireActive();
+            const capturedRevision = revision;
             clearTimeout(record.window.app.generateTimeout);
             await record.window.app.generateJSON();
-            if (requireActive() !== record) throw new Error('Input builder changed during validation');
+            if (requireActive() !== record || revision !== capturedRevision) throw new Error('Input builder changed during validation');
             const result = record.window.app.lastValidation;
             if (!result) throw new Error('Editor changed during validation');
-            return { ...result, revision: record.window.app.generation };
+            return { ...result, revision: capturedRevision };
             });
         },
         async snapshot(resolveDependency) {
             return run(async signal => {
             const record = requireActive();
+            const capturedRevision = revision;
             const result = await record.window.BioNuTAEditorState.capture(resolverWithSignal(resolveDependency, signal));
-            if (requireActive() !== record) throw new Error('Input builder changed during snapshot');
+            if (requireActive() !== record || revision !== capturedRevision) throw new Error('Input builder changed during snapshot');
+            result.snapshot.revision = capturedRevision;
             return result;
             });
         },
@@ -193,8 +197,11 @@ export async function mount(container, { target, editorURL = DEFAULT_EDITOR.href
         async materialize(resolveDependency) {
             return run(async signal => {
             const record = requireActive();
+            const capturedRevision = revision;
             const result = await record.window.BioNuTAEditorState.materialize(resolverWithSignal(resolveDependency, signal));
-            if (requireActive() !== record) throw new Error('Input builder changed during materialization');
+            if (requireActive() !== record || revision !== capturedRevision) throw new Error('Input builder changed during materialization');
+            result.revision = capturedRevision;
+            result.snapshot.revision = capturedRevision;
             return result;
             });
         },
@@ -202,19 +209,20 @@ export async function mount(container, { target, editorURL = DEFAULT_EDITOR.href
             return run(async signal => {
             if (restoring) throw new Error('Restore already in progress');
             const previous = requireActive();
-            const revision = previous.window.app.generation;
+            const generation = previous.window.app.generation;
+            const capturedRevision = revision;
             restoring = true;
             let staged;
             try {
                 staged = await createFrame(true);
                 await staged.window.BioNuTAEditorState.restoreIntoFreshEditor(snapshot, target, resolverWithSignal(resolveDependency, signal));
-                if (requireActive() !== previous || previous.window.app.generation !== revision) throw new Error('Editor changed during restore');
+                if (requireActive() !== previous || previous.window.app.generation !== generation || revision !== capturedRevision) throw new Error('Editor changed during restore');
                 current = staged;
                 staged.frame.hidden = false;
                 staged.frame.style.display = 'block';
                 staged.resize();
                 disposeFrame(previous);
-                notify(staged.window.app.generation);
+                notify(++revision);
             } catch (error) {
                 disposeFrame(staged);
                 throw error;

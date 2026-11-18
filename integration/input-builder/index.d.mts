@@ -16,7 +16,7 @@ export interface DependencyFile extends DependencyMetadata {
 }
 export interface InputSnapshot {
   builder: 'bionuta';
-  builderVersion: 1;
+  builderVersion: 2;
   documentSchemaVersion: 1;
   target: string;
   revision: number;

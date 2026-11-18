@@ -1691,6 +1691,17 @@ function updatePTMMarking(sequenceId) {
     }
 }
 
+function escapeSequenceCharacter(char) {
+    switch (char) {
+        case '&': return '&amp;';
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '"': return '&quot;';
+        case "'": return '&#39;';
+        default: return char;
+    }
+}
+
 function updateSequenceVisualMarking(sequenceId, sequence, modifiedPositions) {
     // Update the main visualization div to include PTM marking
     const vizDiv = document.getElementById(`${sequenceId}_sequenceViz`);
@@ -1707,7 +1718,7 @@ function updateSequenceVisualMarking(sequenceId, sequence, modifiedPositions) {
         // Build sequence line
         for (let i = lineStart; i < lineEnd; i++) {
             const position = i + 1;
-            const char = sequence[i];
+            const char = escapeSequenceCharacter(sequence[i]);
             const isModified = modifiedPositions.includes(position);
 
             // Sequence line with PTM highlighting
@@ -2204,14 +2215,15 @@ async function getResidueCountForChain(chainId) {
     return 0;
 }
 
-// Helper function to create chain dropdown options
-function createChainDropdownOptions() {
-    const chainIds = getAllChainIds();
-    let options = '<option value="">Select chain...</option>';
-    chainIds.forEach(chainId => {
-        options += `<option value="${chainId}">${chainId}</option>`;
+// Chain IDs can come from imported input; insert them only as DOM values.
+function populateChainDropdownOptions(list, chainIds) {
+    const options = chainIds.map(chainId => {
+        const option = document.createElement('option');
+        option.value = chainId;
+        option.textContent = chainId;
+        return option;
     });
-    return options;
+    list.replaceChildren(...options);
 }
 
 
@@ -2239,7 +2251,7 @@ async function updateResidueDropdown(bondId, chainNumber, selectedChainId, clear
 async function refreshBondedAtomPairDropdowns() {
     if (!window.app.bondedAtomPairs) return;
 
-    const chainOptions = createChainDropdownOptions();
+    const chainIds = getAllChainIds();
 
     for (const bond of window.app.bondedAtomPairs) {
         // Update chain datalists
@@ -2249,7 +2261,7 @@ async function refreshBondedAtomPairDropdowns() {
         const chain2Input = document.getElementById(`${bond.id}_chain2`);
 
         if (chain1Datalist) {
-            chain1Datalist.innerHTML = chainOptions;
+            populateChainDropdownOptions(chain1Datalist, chainIds);
             // Update residue dropdown if chain is entered (don't clear input)
             if (chain1Input && chain1Input.value) {
                 await updateResidueDropdown(bond.id, '1', chain1Input.value, false);
@@ -2257,7 +2269,7 @@ async function refreshBondedAtomPairDropdowns() {
         }
 
         if (chain2Datalist) {
-            chain2Datalist.innerHTML = chainOptions;
+            populateChainDropdownOptions(chain2Datalist, chainIds);
             // Update residue dropdown if chain is entered (don't clear input)
             if (chain2Input && chain2Input.value) {
                 await updateResidueDropdown(bond.id, '2', chain2Input.value, false);
@@ -2276,8 +2288,6 @@ function addBondedAtomPair() {
         container.innerHTML = '';
     }
 
-    const chainOptions = createChainDropdownOptions();
-
     const bondHTML = `
         <div class="card mb-2" id="bond_${bondId}">
             <div class="card-body">
@@ -2286,7 +2296,6 @@ function addBondedAtomPair() {
                         <label class="form-label">Chain 1</label>
                         <input type="text" class="form-control" id="${bondId}_chain1" placeholder="Enter chain ID" list="${bondId}_chain1_list" oninput="(async () => await updateResidueDropdown('${bondId}', '1', this.value))()">
                         <datalist id="${bondId}_chain1_list">
-                            ${chainOptions}
                         </datalist>
                     </div>
                     <div class="col-md-2">
@@ -2303,7 +2312,6 @@ function addBondedAtomPair() {
                         <label class="form-label">Chain 2</label>
                         <input type="text" class="form-control" id="${bondId}_chain2" placeholder="Enter chain ID" list="${bondId}_chain2_list" oninput="(async () => await updateResidueDropdown('${bondId}', '2', this.value))()">
                         <datalist id="${bondId}_chain2_list">
-                            ${chainOptions}
                         </datalist>
                     </div>
                     <div class="col-md-2">
@@ -2327,6 +2335,9 @@ function addBondedAtomPair() {
     `;
     
     container.insertAdjacentHTML('beforeend', bondHTML);
+    const chainIds = getAllChainIds();
+    populateChainDropdownOptions(document.getElementById(`${bondId}_chain1_list`), chainIds);
+    populateChainDropdownOptions(document.getElementById(`${bondId}_chain2_list`), chainIds);
     
     // Add to bonded atom pairs array
     window.app.bondedAtomPairs.push({
@@ -3194,7 +3205,7 @@ function updateSequenceVisualization(sequenceId) {
         // Build sequence line
         for (let i = lineStart; i < lineEnd; i++) {
             const position = i + 1;
-            const char = sequence[i];
+            const char = escapeSequenceCharacter(sequence[i]);
 
             sequenceLine += char;
 
@@ -3727,7 +3738,7 @@ function updateSequenceVisualWithGlycosylation(sequenceId, sequence, glycosylate
         // Build sequence line
         for (let i = lineStart; i < lineEnd; i++) {
             const position = i + 1;
-            const char = sequence[i];
+            const char = escapeSequenceCharacter(sequence[i]);
             const isModified = ptmPositions.includes(position);
             const isGlycosylated = glycosylatedPositions.includes(position);
             const isSequon = sequonPositions.includes(position);
@@ -3861,7 +3872,7 @@ function updateSequenceVisualWithSequons(sequenceId, sequence, glycosylatedPosit
         // Build sequence line
         for (let i = lineStart; i < lineEnd; i++) {
             const position = i + 1;
-            const char = sequence[i];
+            const char = escapeSequenceCharacter(sequence[i]);
             const isModified = ptmPositions.includes(position);
             const isGlycosylated = glycosylatedPositions.includes(position);
             const isSequon = sequonPositions.includes(position);
@@ -4492,7 +4503,13 @@ function openSugarDrawerPopup(textareaId) {
     currentTargetTextareaId = textareaId;
 
     // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('sugarDrawerPopupModal'));
+    const modalElement = document.getElementById('sugarDrawerPopupModal');
+    const opener = document.activeElement;
+    modalElement.addEventListener('hidden.bs.modal', () => {
+        currentTargetTextareaId = null;
+        if (opener?.isConnected) opener.focus({ preventScroll: true });
+    }, { once: true });
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
     modal.show();
 
     // Initialize SugarDrawer in the popup container
@@ -4595,6 +4612,9 @@ function setupPopupPostMessageCommunication() {
                         break;
                     case 'SUGARDRAWER_ONE_CLICK_EXPORT':
                         handleOneClickExport(event.data, event.source);
+                        break;
+                    case 'SUGARDRAWER_ESCAPE':
+                        closePopupModal();
                         break;
                     case 'CLOSE_POPUP':
                         if (window.lastValidationFailed) {

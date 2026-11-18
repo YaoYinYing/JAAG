@@ -50,6 +50,15 @@ export class Interface extends React.Component {
             }
         });
 
+        // Keyboard events inside the nested frame do not bubble to Bootstrap's
+        // parent dialog. Ask the same-origin parent to dismiss it on Escape.
+        window.addEventListener('keydown', (event) => {
+            if (this.isPopupMode && event.key === 'Escape' && !event.defaultPrevented
+                && window.location.origin !== 'null') {
+                window.parent.postMessage({ type: 'SUGARDRAWER_ESCAPE' }, window.location.origin);
+            }
+        });
+
         // Hide GlycoCT Output box in popup mode
         if (this.isPopupMode) {
             // Use setTimeout to ensure DOM is ready

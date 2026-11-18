@@ -421,6 +421,21 @@ document.addEventListener('DOMContentLoaded', function() {
     updateActiveUserCCDsDisplay();
 });
 
+/** Return CCD references currently visible to the legacy helper API. */
+function getAllUsedCCDCodes() {
+    const used = new Set();
+    for (const sequence of window.app?.sequences || []) {
+        for (const code of sequence.data?.ligand?.ccdCodes || []) used.add(code);
+    }
+    for (const glycan of window.activeGlycans || []) {
+        for (const code of glycan.ccdCodes || []) used.add(code);
+    }
+    document.querySelectorAll('[id$="_ccdCodes"]').forEach(input => {
+        for (const code of input.value.split(/[\s,]+/)) if (code) used.add(code);
+    });
+    return used;
+}
+
 /** Merge derived components without replacing manually authored data. */
 function mergeAutomaticUserCCDs(destination, entries, source = 'automatic-glycan') {
     for (const [id, data] of Object.entries(entries || {})) {
