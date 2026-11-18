@@ -71,6 +71,7 @@ test('shared-input hydration preserves explicit multimer IDs and commits bonds',
         document: { getElementById: id => element(id) },
         URL,
         setTimeout,
+        clearTimeout,
         console
     };
     Object.assign(context, window);
@@ -82,10 +83,9 @@ test('shared-input hydration preserves explicit multimer IDs and commits bonds',
     assert.deepEqual(window.app.bondedAtomPairs[0].data, [['A', 1, 'CA'], ['G', 1, 'C1']]);
     assert.equal(window.app.isRestoringSharedInput, false);
 
-    let restoreError = '';
-    window.app.showError = message => { restoreError = message; };
     inputDocument.job.entities[1].ligand = { source: 'file', path: '/data/ligand.sdf' };
     await readyListener();
-    assert.match(restoreError, /do not support ligand file paths/);
+    assert.equal(element('seq_2_ligandType').value, 'file');
+    assert.equal(element('seq_2_filePath').value, '/data/ligand.sdf');
     assert.equal(window.app.isRestoringSharedInput, false);
 });
