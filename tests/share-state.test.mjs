@@ -6,7 +6,7 @@ import vm from 'node:vm';
 test('shared-input hydration preserves explicit multimer IDs and commits bonds', async () => {
     const elements = new Map();
     const element = id => {
-        if (!elements.has(id)) elements.set(id, { id, value: '', innerHTML: '', textContent: '' });
+        if (!elements.has(id)) elements.set(id, { id, value: '', innerHTML: '', textContent: '', replaceChildren() { this.innerHTML = ''; } });
         return elements.get(id);
     };
     ['jobName', 'modelSeedsMultiple', 'version', 'outputTarget', 'sequencesContainer', 'bondedAtomPairsContainer', 'userCCDPath']

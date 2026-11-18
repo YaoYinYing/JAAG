@@ -250,3 +250,31 @@ test('glycan and automatic CCD cleanup preserve unrelated authored inputs', asyn
     expect(result.ccds).toContain('MANUAL');
     expect(result.ccds).not.toContain('AUTO');
 });
+
+test('inactive inline alternatives remain editable after snapshot restore', async ({ page }) => {
+    await page.goto('/integration/input-builder/harness.html');
+    const result = await page.evaluate(async () => {
+        const { mount } = await import('/integration/input-builder/index.mjs');
+        const holder = document.createElement('div'); document.body.append(holder);
+        const builder = await mount(holder, { target: 'alphafold3' });
+        const w = holder.querySelector('iframe').contentWindow;
+        const set = (id, value) => { const element = w.document.getElementById(id); element.value = value; element.dispatchEvent(new Event('input', { bubbles: true })); };
+        w.addSequence('protein'); set('seq_1_sequence', 'MNNSTAA'); set('jobName', 'Synthetic_Test');
+        set('seq_1_unpairedMsa', '>query\nMNNSTAA');
+        w.addSequence('ligand'); set('seq_2_ligandType', 'ccd'); w.toggleLigandInputs('seq_2'); set('seq_2_ccdCodes', 'ATP');
+        set('seq_2_smiles', 'C(C)O'); set('seq_2_glycoCT', 'inactive GlycoCT');
+        w.document.getElementById('inlineUserCCD').click(); set('userCCDId', 'DRAFT'); set('userCCDInput', 'unfinished CCD data');
+        await w.app.generateJSON();
+        if (!w.app.lastValidation?.valid) throw new Error(JSON.stringify(w.app.lastValidation));
+        w.clearTimeout(w.app.initialGenerateTimeout);
+        w.app.initialGenerateTimeout = w.setTimeout(() => w.app.generateJSON(), 0);
+        const first = await builder.materialize();
+        await builder.restore(first.snapshot);
+        const restored = holder.querySelector('iframe').contentWindow;
+        const values = ['seq_1_unpairedMsa', 'seq_2_ccdCodes', 'seq_2_smiles', 'seq_2_glycoCT', 'userCCDId', 'userCCDInput'].map(id => restored.document.getElementById(id).value);
+        const second = await builder.materialize();
+        builder.destroy();
+        return { values, same: first.output.sha256 === second.output.sha256 };
+    });
+    expect(result).toEqual({ values: ['>query\nMNNSTAA', 'ATP', 'C(C)O', 'inactive GlycoCT', 'DRAFT', 'unfinished CCD data'], same: true });
+});

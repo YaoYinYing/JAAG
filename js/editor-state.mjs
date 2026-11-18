@@ -2,7 +2,7 @@
 import { captureInputDependencies, listInputDependencySlots, resolveInputDependencies, MAX_DOCUMENT_BYTES } from '../shared/input-dependencies.mjs';
 
 const BUILDER = 'bionuta';
-const VERSION = 1;
+const VERSION = 2;
 const MAX_SITES = 1000;
 const MAX_TEXT = MAX_DOCUMENT_BYTES;
 const fields = ['position', 'residueType', 'atom', 'customAtom', 'chainId', 'glycan', 'description'];
@@ -31,7 +31,6 @@ function canonical(value) {
 }
 function equivalent(left, right) { return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right)); }
 function captureCustomComponents(app, inputDocument) {
-    if (read('userCCDInput')) throw new Error('Add or clear the unfinished userCCD input before snapshot');
     const path = inputDocument.job.customComponents?.path;
     const collect = source => Object.entries(source || {}).map(([id, data]) => {
         if (!/^[A-Za-z0-9_-]{1,128}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id)) throw new Error('Invalid custom CCD identifier');
@@ -44,12 +43,16 @@ function captureCustomComponents(app, inputDocument) {
     });
     const pathField = read('userCCDPath');
     if (pathField && pathField !== path) throw new Error('Multiple custom CCD paths cannot be represented');
-    return { entries: collect(app.userCCDs), glycanEntries: collect(app.glycanUserCCDs), pathField: !!pathField };
+    return { entries: collect(app.userCCDs), glycanEntries: collect(app.glycanUserCCDs), pathField: !!pathField,
+        draftId: read('userCCDId'), draftInline: read('userCCDInput'),
+        draftMode: document.getElementById('inlineUserCCD')?.checked ? 'inline' : 'file' };
 }
 function validateCustomComponents(value, document) {
-    exactKeys(value, ['entries', 'glycanEntries', 'pathField'], 'custom CCD authoring');
+    exactKeys(value, ['entries', 'glycanEntries', 'pathField', 'draftId', 'draftInline', 'draftMode'], 'custom CCD authoring');
     if (!Array.isArray(value.entries) || !Array.isArray(value.glycanEntries) || typeof value.pathField !== 'boolean'
-        || value.entries.length + value.glycanEntries.length > 1000) throw new Error('Invalid custom CCD authoring');
+        || value.entries.length + value.glycanEntries.length > 1000 || !['inline', 'file'].includes(value.draftMode)
+        || typeof value.draftId !== 'string' || value.draftId.length > MAX_TEXT
+        || typeof value.draftInline !== 'string' || value.draftInline.length > MAX_TEXT) throw new Error('Invalid custom CCD authoring');
     for (const list of [value.entries, value.glycanEntries]) {
         const ids = new Set();
         for (const entry of list) {
@@ -77,6 +80,11 @@ function restoreCustomComponents(value, document, app) {
     app.userCCDs = restore(value.entries);
     app.glycanUserCCDs = restore(value.glycanEntries);
     write('userCCDPath', value.pathField ? document.job.customComponents.path : '');
+    write('userCCDId', value.draftId);
+    write('userCCDInput', value.draftInline);
+    const selectedMode = window.document.getElementById(value.draftMode === 'inline' ? 'inlineUserCCD' : 'fileUserCCD');
+    selectedMode.checked = true;
+    selectedMode.dispatchEvent(new Event('change', { bubbles: true }));
     window.activeUserCCDs = value.entries.filter(entry => !entry.source.startsWith('automatic')).map(entry => ({
         componentId: entry.id, method: entry.kind === 'inline' ? 'inline' : 'file',
         content: entry.kind === 'inline' ? 'CCD mmCIF data' : document.job.customComponents.path
@@ -97,28 +105,31 @@ function captureAuthoring(app) {
     let siteCount = 0;
     return app.sequences.map((sequence, index) => {
         if (!document.getElementById(`sequence_${sequence.id}`)) throw new Error('This editor contains an entity that cannot yet be snapshotted');
-        const entry = { key: `entity-${index + 1}`, glycoCT: '', msaMode: '', manualSites: [], sequonSites: [] };
+        const entry = { key: `entity-${index + 1}`, glycoCT: '', msaMode: '', manualSites: [], sequonSites: [],
+            inactive: { glycoCT: '', ccdCodes: '', smiles: '', ionCode: '', unpairedMsa: '', pairedMsa: '', templates: [] } };
         if (sequence.type === 'ligand') {
             const type = read(`${sequence.id}_ligandType`);
             const glycoCT = read(`${sequence.id}_glycoCT`);
             if (type === 'glycan') entry.glycoCT = glycoCT;
-            else if (glycoCT) throw new Error('Clear inactive ligand GlycoCT before snapshot');
-            for (const [source, field] of [['file', 'filePath'], ['ccd', 'ccdCodes'], ['smiles', 'smiles'], ['ion', 'ionCode']]) {
-                if (type !== source && read(`${sequence.id}_${field}`)) throw new Error('Clear inactive ligand inputs before snapshot');
+            else entry.inactive.glycoCT = glycoCT;
+            if (type !== 'file' && read(`${sequence.id}_filePath`)) throw new Error('Clear inactive ligand file path before snapshot');
+            for (const [source, field] of [['ccd', 'ccdCodes'], ['smiles', 'smiles'], ['ion', 'ionCode']]) {
+                if (type !== source) entry.inactive[field] = read(`${sequence.id}_${field}`);
             }
         }
         if (sequence.type === 'protein' || sequence.type === 'rna') {
             entry.msaMode = ['auto', 'path', 'direct'].find(mode => document.getElementById(`${sequence.id}_msaType${mode === 'auto' ? 'Auto' : mode === 'path' ? 'Path' : 'Direct'}`)?.checked) || 'auto';
             for (const kind of ['unpaired', 'paired']) {
                 if (entry.msaMode !== 'path' && read(`${sequence.id}_${kind}MsaPath`)) throw new Error('Clear inactive MSA paths before snapshot');
-                if (entry.msaMode !== 'direct' && read(`${sequence.id}_${kind}Msa`)) throw new Error('Clear inactive MSA data before snapshot');
+                if (entry.msaMode !== 'direct') entry.inactive[`${kind}Msa`] = read(`${sequence.id}_${kind}Msa`);
             }
         }
         if (sequence.type === 'protein') {
             const templates = document.getElementById(`${sequence.id}_templates`)?.querySelectorAll('.card[id^="template_"]') || [];
             for (const card of templates) {
                 const pathSelected = document.getElementById(`${card.id}_sourceTypePath`)?.checked;
-                if (read(`${card.id}_${pathSelected ? 'mmcif' : 'mmcifPath'}`)) throw new Error('Clear inactive template input before snapshot');
+                if (!pathSelected && read(`${card.id}_mmcifPath`)) throw new Error('Clear inactive template path before snapshot');
+                entry.inactive.templates.push(pathSelected ? read(`${card.id}_mmcif`) : '');
             }
             for (const [container, prefix, key] of [
                 ['glycosylationSites', 'glyco_', 'manualSites'], ['sequonSites', 'sequon_', 'sequonSites']
@@ -178,7 +189,13 @@ function validateEnvelope(input, target, core) {
         || snapshot.manualBondCount < 0 || snapshot.manualBondCount > (snapshot.document.job.bonds || []).length) throw new Error('Snapshot entity or bond count mismatch');
     let count = 0;
     snapshot.authoring.forEach((entry, index) => {
-        exactKeys(entry, ['key', 'glycoCT', 'msaMode', 'manualSites', 'sequonSites'], 'authoring entry');
+        exactKeys(entry, ['key', 'glycoCT', 'msaMode', 'manualSites', 'sequonSites', 'inactive'], 'authoring entry');
+        exactKeys(entry.inactive, ['glycoCT', 'ccdCodes', 'smiles', 'ionCode', 'unpairedMsa', 'pairedMsa', 'templates'], 'inactive inputs');
+        for (const [key, value] of Object.entries(entry.inactive)) {
+            if (key === 'templates') {
+                if (!Array.isArray(value) || value.length > 1000 || value.some(item => typeof item !== 'string' || item.length > MAX_TEXT)) throw new Error('Invalid inactive templates');
+            } else if (typeof value !== 'string' || value.length > MAX_TEXT) throw new Error('Invalid inactive input');
+        }
         if (entry.key !== `entity-${index + 1}` || entities[index].key !== entry.key
             || typeof entry.glycoCT !== 'string' || entry.glycoCT.length > MAX_TEXT
             || !(['protein', 'rna'].includes(entities[index].type) ? ['auto', 'path', 'direct'].includes(entry.msaMode) : entry.msaMode === '')
@@ -254,6 +271,17 @@ async function restoreIntoFreshEditor(input, target, resolveDependency) {
                 radio.checked = true;
                 window.toggleMSAInput(seq.id);
             }
+            if (seq.type === 'ligand') {
+                for (const key of ['glycoCT', 'ccdCodes', 'smiles', 'ionCode']) {
+                    if (entry.inactive[key]) write(`${seq.id}_${key}`, entry.inactive[key]);
+                }
+            }
+            if (entry.msaMode) {
+                for (const key of ['unpairedMsa', 'pairedMsa']) if (entry.inactive[key]) write(`${seq.id}_${key}`, entry.inactive[key]);
+            }
+            const templates = document.getElementById(`${seq.id}_templates`)?.querySelectorAll('.card[id^="template_"]') || [];
+            if (templates.length !== entry.inactive.templates.length) throw new Error('Restored template count mismatch');
+            entry.inactive.templates.forEach((value, templateIndex) => { if (value) write(`${templates[templateIndex].id}_mmcif`, value); });
             for (const site of entry.manualSites) {
                 await new Promise(resolve => setTimeout(resolve, 2));
                 window.addGlycosylationSite(seq.id);

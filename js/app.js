@@ -131,6 +131,10 @@ class AlphaFold3Generator {
 
     async generateJSON() {
         if (this.isRestoringSharedInput) return;
+        // An explicit validation or materialization supersedes the startup
+        // preview; otherwise that timer can invalidate the in-flight result.
+        clearTimeout(this.initialGenerateTimeout);
+        this.initialGenerateTimeout = null;
         const generation = this.generation = (this.generation || 0) + 1;
         this.lastValidation = null;
         try {
@@ -239,7 +243,7 @@ class AlphaFold3Generator {
         
         // Clear placeholder text if this is the first real entry
         if (debugLog.children.length === 1 && debugLog.children[0].classList.contains('text-muted')) {
-            debugLog.innerHTML = '';
+            debugLog.replaceChildren();
         }
         
         debugLog.appendChild(logEntry);

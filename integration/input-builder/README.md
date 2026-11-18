@@ -91,8 +91,8 @@ metadata. The neutral document includes generated glycan entities and bonds;
 the authoring data lets restore recreate their editable sources. File bytes are separate. An
 unsupported version, unknown field, invalid state, changed revision, missing
 file, unsafe path or mismatched digest causes an error. Current capture requires
-valid input. It rejects inactive ligand/MSA data rather than discarding it,
-unfinished custom CCD input, multiple different custom CCD paths, and legacy
+valid input. It preserves inactive inline ligand, MSA and template alternatives, but rejects
+inactive file paths, multiple different custom CCD paths, and legacy
 entities that have no editable form. Template slots use their index within an
 entity; changing their order can change slot IDs. These are current limitations,
 not claims that target-native import is lossless. Existing standalone share and

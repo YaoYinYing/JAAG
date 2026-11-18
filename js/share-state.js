@@ -68,9 +68,9 @@
         window.app.userCCDs = {};
         window.app.glycanUserCCDs = {};
         setValue('userCCDPath', '');
-        document.getElementById('sequencesContainer').innerHTML = '';
+        document.getElementById('sequencesContainer').replaceChildren();
         const bondsContainer = document.getElementById('bondedAtomPairsContainer');
-        if (bondsContainer) bondsContainer.innerHTML = '';
+        if (bondsContainer) bondsContainer.replaceChildren();
 
         for (const entity of inputDocument.job.entities) {
             const formType = entity.type === 'ion' ? 'ligand' : entity.type;
