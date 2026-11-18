@@ -97,7 +97,7 @@ function addSequence(type) {
     }
 
     // Auto-scroll to the newly added sequence
-    setTimeout(() => {
+    if (!window.app.isRestoringSharedInput) setTimeout(() => {
         const newSequenceElement = document.getElementById(`sequence_${sequenceId}`);
         if (newSequenceElement) {
             newSequenceElement.scrollIntoView({
@@ -4517,6 +4517,7 @@ function initializePopupSugarDrawer() {
             <div class="sugardrawer-popup-integration">
                 <iframe
                     id="sugarDrawerPopupFrame"
+                    title="SugarDrawer glycan editor"
                     src="sugardrawer/dist/index.html?popup=true"
                     width="100%"
                     height="100%"
@@ -4572,16 +4573,7 @@ function setupPopupPostMessageCommunication() {
 
     // Create new handler for popup messages
     window.popupMessageHandler = (event) => {
-
-        // Security check - ensure message is from expected sources
-        if (event.origin === null ||
-            event.origin === 'null' ||
-            event.origin === 'https://pages.glycosmos.org' ||
-            (event.origin && event.origin.startsWith('http://127.0.0.1')) ||
-            (event.origin && event.origin.startsWith('http://localhost')) ||
-            (event.origin && event.origin.includes('ngrok-free.app'))) {
-
-            if (event.data && typeof event.data === 'object') {
+        if (isTrustedSugarDrawerMessage(event, 'sugarDrawerPopupFrame')) {
                 switch (event.data.type) {
                     case 'SUGARDRAWER_READY':
                         break;
@@ -4599,7 +4591,7 @@ function setupPopupPostMessageCommunication() {
                         }
                         break;
                     case 'SUGARDRAWER_ONE_CLICK_EXPORT':
-                        handleOneClickExport(event.data);
+                        handleOneClickExport(event.data, event.source);
                         break;
                     case 'CLOSE_POPUP':
                         if (window.lastValidationFailed) {
@@ -4609,7 +4601,6 @@ function setupPopupPostMessageCommunication() {
                         }
                         break;
                 }
-            }
         }
     };
 
@@ -4696,18 +4687,18 @@ function exportGlycoCTFromPopup() {
             iframe.contentWindow.postMessage({
                 action: 'export',
                 format: 'glycoct'
-            }, '*');
+            }, location.origin);
 
             iframe.contentWindow.postMessage({
                 type: 'TRIGGER_EXPORT',
                 format: 'glycoct'
-            }, '*');
+            }, location.origin);
 
             // Method 2: Try to simulate copy button click in SugarDrawer
             setTimeout(() => {
                 iframe.contentWindow.postMessage({
                     action: 'copyGlycoCT'
-                }, '*');
+                }, location.origin);
             }, 100);
 
         } catch (error) {
@@ -4853,7 +4844,7 @@ function exportGlycoCTFromPopup() {
 /**
  * Handle one-click export from SugarDrawer popup
  */
-async function handleOneClickExport(data) {
+async function handleOneClickExport(data, source) {
 
     if (!data.glycoct) {
         if (window.app && window.app.showError) {
@@ -4869,7 +4860,8 @@ async function handleOneClickExport(data) {
         return;
     }
 
-    const targetTextarea = document.getElementById(currentTargetTextareaId);
+    const targetId = currentTargetTextareaId;
+    const targetTextarea = document.getElementById(targetId);
 
     if (!targetTextarea) {
         if (window.app && window.app.showError) {
@@ -4917,6 +4909,9 @@ async function handleOneClickExport(data) {
         }
     }
 
+    if (currentTargetTextareaId !== targetId || document.getElementById(targetId) !== targetTextarea
+        || (source && document.getElementById('sugarDrawerPopupFrame')?.contentWindow !== source)) return;
+
     // Simple direct approach - just set the value and close modal
     targetTextarea.value = glycoCT;
 
@@ -4932,7 +4927,7 @@ async function handleOneClickExport(data) {
     // Send message to SugarDrawer to clear canvas after successful export
     const sugarDrawerFrame = document.getElementById('sugarDrawerPopupFrame');
     if (sugarDrawerFrame && sugarDrawerFrame.contentWindow) {
-        sugarDrawerFrame.contentWindow.postMessage({ type: 'SUGARDRAWER_CLEAR_CANVAS' }, '*');
+        sugarDrawerFrame.contentWindow.postMessage({ type: 'SUGARDRAWER_CLEAR_CANVAS' }, location.origin);
     }
 
     // Close modal directly like the working case

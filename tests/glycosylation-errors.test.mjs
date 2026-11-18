@@ -48,32 +48,6 @@ test('job generation reports a failed glycan conversion instead of exporting a p
     await assert.rejects(app.buildAlphaFold3JSON(), /Glycosylation on chain A: conversion failed/);
 });
 
-test('base authoring document excludes regenerated glycan entities and bonds', async () => {
-    function Generator() {}
-    const fields = { jobName: { value: 'Test' }, version: { value: '4' }, modelSeedsMultiple: { value: '1' } };
-    const window = {};
-    const context = {
-        AlphaFold3Generator: Generator, document: { getElementById: id => fields[id] || null }, window, console,
-        processGlycosylationSites: async () => ({ ligands: [{ ligand: { id: 'G', ccdCodes: ['NAG'] } }], bonds: [[['A', 2, 'ND2'], ['G', 1, 'C1']]] })
-    };
-    vm.runInNewContext(readFileSync(new URL('../js/json-generator.js', import.meta.url), 'utf8'), context);
-    const app = new Generator();
-    window.app = app;
-    app.sequences = [
-        { id: 'seq_1', type: 'protein', data: { protein: { id: 'A', sequence: 'MNNSTAA' }, _glycosylationSites: [{}], _proteinSequenceId: 'seq_1' } },
-        { id: 'seq_2', type: 'ligand', data: { ligand: { id: 'L', ccdCodes: ['NAG', 'MAN'] } }, bondedAtomPairs: [[['L', 1, 'O4'], ['L', 2, 'C1']]] }
-    ];
-    app.bondedAtomPairs = [];
-    app.userCCDs = {};
-    app.validateSequenceData = data => ({ [Object.keys(data)[0]]: Object.values(data)[0] });
-    app.consolidateMultimerGlycans = ligands => ligands;
-    const full = await app.buildAlphaFold3JSON();
-    const base = await app.buildAlphaFold3JSON({ includeDerived: false });
-    assert.equal(full.sequences.length, 3);
-    assert.equal(full.bondedAtomPairs.length, 2);
-    assert.equal(base.sequences.length, 2);
-    assert.equal(base.bondedAtomPairs, undefined);
-});
 
 test('incomplete modifications and malformed template indices block collection', async () => {
     function Generator() {}

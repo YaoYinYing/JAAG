@@ -129,7 +129,7 @@ function addUserCCDToJSON() {
         
         // Generate JSON to include the userCCD data
         if (window.app.generateJSON) {
-            window.app.generateJSON();
+            window.app.debounceGenerate();
         }
         
     } catch (error) {
@@ -185,7 +185,7 @@ function removeUserCCD(componentId) {
     
     // Regenerate JSON
     if (window.app && window.app.generateJSON) {
-        window.app.generateJSON();
+        window.app.debounceGenerate();
     }
     
     // Show success message
@@ -223,7 +223,7 @@ function clearAllUserCCDs() {
     
     // Regenerate JSON
     if (window.app && window.app.generateJSON) {
-        window.app.generateJSON();
+        window.app.debounceGenerate();
     }
     
     // Show success message
@@ -269,32 +269,29 @@ function updateActiveUserCCDsDisplay() {
         return;
     }
     
-    // Generate list HTML
-    const userCCDsHTML = manualUserCCDs.map(userCCD => {
-        const contentDisplay = userCCD.method === 'inline'
-            ? 'Inline CCD mmCIF'
-            : userCCD.content;
-
-        const timeDisplay = new Date(userCCD.timestamp).toLocaleTimeString();
-
-        return `
-            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                <div class="flex-grow-1">
-                    <div class="d-flex align-items-center">
-                        <strong class="me-3">${userCCD.componentId}</strong>
-                        <code class="small bg-light px-2 py-1 rounded me-2">${contentDisplay}</code>
-                        <span class="badge bg-secondary small">${userCCD.method}</span>
-                        <small class="text-muted ms-2">${timeDisplay}</small>
-                    </div>
-                </div>
-                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeUserCCD('${userCCD.componentId}')" title="Remove this userCCD component">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `;
-    }).join('');
-    
-    listContainer.innerHTML = userCCDsHTML;
+    const rows = manualUserCCDs.map(userCCD => {
+        const row = document.createElement('div');
+        row.className = 'd-flex justify-content-between align-items-center py-2 border-bottom';
+        const detail = document.createElement('div');
+        detail.className = 'd-flex align-items-center flex-wrap gap-2';
+        const name = document.createElement('strong');
+        name.textContent = userCCD.componentId;
+        const content = document.createElement('code');
+        content.textContent = userCCD.method === 'inline' ? 'Inline CCD mmCIF' : userCCD.content;
+        const method = document.createElement('span');
+        method.className = 'badge bg-secondary small';
+        method.textContent = userCCD.method;
+        detail.append(name, content, method);
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-outline-danger btn-sm';
+        remove.textContent = 'Remove';
+        remove.setAttribute('aria-label', `Remove userCCD ${userCCD.componentId}`);
+        remove.addEventListener('click', () => removeUserCCD(userCCD.componentId));
+        row.append(detail, remove);
+        return row;
+    });
+    listContainer.replaceChildren(...rows);
 }
 
 
@@ -445,10 +442,19 @@ function getAllUsedCCDCodes() {
             }
         }
     }
+
+    // The form-backed editor and the last generated document also contain CCD
+    // references; sequence.data only covers legacy SugarDrawer entities.
+    document.querySelectorAll('[id$="_ccdCodes"]').forEach(input => {
+        for (const code of input.value.split(/[\s,]+/)) if (code) usedCCDs.add(code);
+    });
+    for (const entity of window.app.lastInputDocument?.job?.entities || []) {
+        for (const code of entity.ligand?.ccdCodes || []) usedCCDs.add(code);
+    }
     
     // Check active glycans for CCD codes
-    if (window.app.activeGlycans) {
-        for (const glycan of window.app.activeGlycans) {
+    if (window.activeGlycans) {
+        for (const glycan of window.activeGlycans) {
             if (glycan.ccdCodes) {
                 for (const ccdCode of glycan.ccdCodes) {
                     usedCCDs.add(ccdCode);
@@ -473,8 +479,8 @@ function getAllUsedCCDCodes() {
             }
             
             // Check if referenced in active glycans
-            if (window.app.activeGlycans) {
-                for (const glycan of window.app.activeGlycans) {
+            if (window.activeGlycans) {
+                for (const glycan of window.activeGlycans) {
                     if (glycan.ccdCodes && glycan.ccdCodes.includes(ccdId)) {
                         usedCCDs.add(ccdId);
                     }
@@ -507,7 +513,9 @@ function cleanupUnusedUserCCDs() {
         const currentUserCCDs = Object.keys(window.app.userCCDs);
         
         for (const userCCDId of currentUserCCDs) {
-            if (!usedCCDs.has(userCCDId)) {
+            const tracked = window.activeUserCCDs.find(ccd => ccd.componentId === userCCDId);
+            const source = window.app.userCCDs[userCCDId].source || tracked?.source || '';
+            if (!usedCCDs.has(userCCDId) && source.startsWith('automatic')) {
                 unusedUserCCDs.push({id: userCCDId, type: 'main'});
             }
         }
@@ -518,12 +526,8 @@ function cleanupUnusedUserCCDs() {
         const currentGlycanUserCCDs = Object.keys(window.app.glycanUserCCDs);
         
         for (const userCCDId of currentGlycanUserCCDs) {
-            if (!usedCCDs.has(userCCDId)) {
-                // Check if it's not also in main userCCDs (avoid duplicate removal)
-                const alreadyMarked = unusedUserCCDs.some(item => item.id === userCCDId);
-                if (!alreadyMarked) {
-                    unusedUserCCDs.push({id: userCCDId, type: 'glycan'});
-                }
+            if (!usedCCDs.has(userCCDId) && String(window.app.glycanUserCCDs[userCCDId].source || '').startsWith('automatic')) {
+                unusedUserCCDs.push({id: userCCDId, type: 'glycan'});
             }
         }
     }
@@ -538,12 +542,12 @@ function cleanupUnusedUserCCDs() {
         const unusedId = unused.id;
         
         // Remove from main userCCDs if exists
-        if (window.app.userCCDs && window.app.userCCDs[unusedId]) {
+        if (unused.type === 'main' && window.app.userCCDs && window.app.userCCDs[unusedId]) {
             delete window.app.userCCDs[unusedId];
         }
         
         // Remove from glycan userCCDs if exists
-        if (window.app.glycanUserCCDs && window.app.glycanUserCCDs[unusedId]) {
+        if (unused.type === 'glycan' && window.app.glycanUserCCDs && window.app.glycanUserCCDs[unusedId]) {
             delete window.app.glycanUserCCDs[unusedId];
         }
         
@@ -551,7 +555,7 @@ function cleanupUnusedUserCCDs() {
         
         // Remove from tracking display if it exists
         if (window.activeUserCCDs) {
-            const index = window.activeUserCCDs.findIndex(ccd => ccd.id === unusedId);
+            const index = window.activeUserCCDs.findIndex(ccd => ccd.componentId === unusedId && String(ccd.source || '').startsWith('automatic'));
             if (index !== -1) {
                 window.activeUserCCDs.splice(index, 1);
             }

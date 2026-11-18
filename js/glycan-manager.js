@@ -73,7 +73,7 @@ function removeGlycan(chainId) {
     
     // Regenerate JSON
     if (window.app && window.app.generateJSON) {
-        window.app.generateJSON();
+        window.app.debounceGenerate();
     }
     
     // Show success message
@@ -98,9 +98,10 @@ function clearAllGlycans() {
     }
     
     
-    // Remove all ligand sequences from app.sequences
+    // Only remove the sequences represented by the tracked glycans.
     if (window.app && window.app.sequences) {
-        window.app.sequences = window.app.sequences.filter(seq => seq.type !== 'ligand');
+        const glycanSequenceIds = new Set(window.activeGlycans.map(glycan => glycan.sequenceId));
+        window.app.sequences = window.app.sequences.filter(seq => !glycanSequenceIds.has(seq.id));
     }
     
     // Clear tracking
@@ -121,7 +122,7 @@ function clearAllGlycans() {
     
     // Regenerate JSON
     if (window.app && window.app.generateJSON) {
-        window.app.generateJSON();
+        window.app.debounceGenerate();
     }
     
     // Show success message
@@ -217,7 +218,7 @@ function updateGlycanDescription(chainId, description) {
             // Auto-regenerate JSON
             if (window.app && window.app.generateJSON) {
                 setTimeout(() => {
-                    window.app.generateJSON();
+                    window.app.debounceGenerate();
                 }, 100);
             }
         } else {

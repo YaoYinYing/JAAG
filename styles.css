@@ -211,3 +211,5 @@ body { background: var(--canvas); color: var(--ink); }
     .uniprot-import { flex-wrap: wrap; gap: .4rem; }
     .uniprot-import .input-group { max-width: none !important; }
 }
+.bionuta-embedded [data-standalone-only] { display: none !important; }
+.workbench .text-warning { color: #805300 !important; }

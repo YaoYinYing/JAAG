@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BioNuTA — Biomolecular Input Assembler</title>
     <meta name="description" content="Assemble biomolecular systems and generate model-ready inputs.">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="styles.css?v=bionuta-2" rel="stylesheet">
+    <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link href="vendor/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="styles.css?v=bionuta-4" rel="stylesheet">
 </head>
 <body>
     <header class="workbench-header">
@@ -15,7 +15,7 @@
             <div class="brand-name">BioNuTA <span>Biomolecular Input Assembler</span></div>
             <p>Assemble once. Model anywhere.</p>
         </div>
-        <a href="https://github.com/YaoYinYing/JAAG" class="source-link">Source &amp; guide <span aria-hidden="true">↗</span></a>
+        <a href="https://github.com/YaoYinYing/JAAG" class="source-link" data-standalone-only>Source &amp; guide <span aria-hidden="true">↗</span></a>
     </header>
     <main class="workbench">
         <h1 class="visually-hidden">Molecular input workbench</h1>
@@ -178,7 +178,7 @@
                 </div>
 
                 <!-- Restore an existing target input into the editor -->
-                <div class="card mb-4">
+                <div class="card mb-4" data-standalone-only>
                     <div class="card-header">Restore Workbench from JSON/YAML</div>
                     <div class="card-body">
                         <div class="row g-3 align-items-end">
@@ -322,16 +322,16 @@
                             <button type="button" class="btn btn-outline-primary" onclick="generateJSON()" style="display: none;">
                                 <i class="fas fa-sync me-1"></i>Generate
                             </button>
-                            <button type="button" class="btn btn-outline-primary" onclick="enrichGlycanData()" aria-describedby="lookupPrivacy" title="Lookup databases for glycan information">
+                            <button type="button" class="btn btn-outline-primary" onclick="enrichGlycanData()" data-standalone-only aria-describedby="lookupPrivacy" title="Lookup databases for glycan information">
                                 <i class="fas fa-search me-1"></i>Lookup
                             </button>
                             <button type="button" class="btn btn-outline-primary" onclick="copyJSON()">
                                 <i class="fas fa-copy me-1"></i>Copy
                             </button>
-                            <button type="button" class="btn btn-outline-primary" onclick="shareInput()" title="Copy a compressed link that restores this input">
+                            <button type="button" class="btn btn-outline-primary" onclick="shareInput()" data-standalone-only title="Copy a compressed link that restores this input">
                                 <i class="fas fa-link me-1"></i>Share
                             </button>
-                            <button type="button" class="btn btn-outline-primary" onclick="downloadJSON()">
+                            <button type="button" class="btn btn-outline-primary" onclick="downloadJSON()" data-standalone-only>
                                 <i class="fas fa-download me-1"></i>Download
                             </button>
                         </div>
@@ -343,10 +343,10 @@
                         <div id="validationStatus" class="text-muted small" role="status" aria-live="polite">
                             <i class="fa-regular fa-face-smile me-1"></i>Ready to generate input
                         </div>
-                        <div class="text-muted mt-1" style="font-size: 0.72rem;">
+                        <div class="text-muted mt-1" data-standalone-only style="font-size: 0.72rem;">
                             <i class="fas fa-shield-halved me-1"></i>Share links embed the input data. Compression is not encryption.
                         </div>
-                        <p id="lookupPrivacy" class="text-muted small mt-2 mb-0">Lookup sends glycan structures to GlyGen and GlyCosmos. It uses a valid AlphaFold 3 preview.</p>
+                        <p data-standalone-only id="lookupPrivacy" class="text-muted small mt-2 mb-0">Lookup sends glycan structures to GlyGen and GlyCosmos. It uses a valid AlphaFold 3 preview.</p>
                     </div>
                 </div>
             </aside>
@@ -369,26 +369,27 @@
     </div>
 
     <!-- Bootstrap JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="vendor/pako/pako.min.js"></script>
     
     <!-- Application JS -->
     <script src="js/glycan-templates.js?v=bionuta-2"></script>
     <script src="js/load-glycan-templates.js"></script>
-    <script src="js/glycan-manager.js"></script>
-    <script src="js/userccd-manager.js"></script>
+    <script src="js/glycan-manager.js?v=bionuta-2"></script>
+    <script src="js/userccd-manager.js?v=bionuta-3"></script>
     <script src="js/substituent-handler.js"></script>
-    <script src="js/sugardrawer-integration.js"></script>
+    <script src="js/sugardrawer-integration.js?v=bionuta-2"></script>
     <script src="js/jaag-core-loader.js"></script>
-    <script src="js/app.js?v=bionuta-6"></script>
-    <script src="js/sequences.js?v=bionuta-5"></script>
+    <script src="js/app.js?v=bionuta-9"></script>
+    <script src="js/sequences.js?v=bionuta-7"></script>
     <script src="js/embedded-userccd-data.js"></script>
     <script src="js/enhanced-glycan-converter.js"></script>
     <script src="js/enhanced-glycoct-parser.js"></script>
     <script src="js/glycan-enrichment.js?v=bionuta-1"></script>
-    <script src="js/json-generator.js?v=bionuta-3"></script>
+    <script src="js/json-generator.js?v=bionuta-4"></script>
     <script src="js/share-state.js"></script>
-    <script src="js/input-import.js"></script>
+    <script src="js/input-import.js?v=bionuta-1"></script>
     <script src="js/workbench.js"></script>
+    <script type="module" src="js/editor-state.mjs?v=5"></script>
 </body>
 </html>

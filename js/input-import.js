@@ -1,5 +1,5 @@
 (function () {
-    const YAML_MODULE_URL = 'https://cdn.jsdelivr.net/npm/js-yaml@5.5.0/dist/browser/js-yaml.esm.min.mjs';
+    const YAML_MODULE_URL = '../vendor/js-yaml/js-yaml.esm.min.mjs';
     const MAX_INPUT_BYTES = 20 * 1024 * 1024;
     const MAX_YAML_NODES = 100000;
     const INPUT_FORMATS = Object.freeze({

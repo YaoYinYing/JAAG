@@ -10,17 +10,25 @@ Software (bundled or vendored)
 - SugarSketcher — Apache License 2.0
   Source: https://gitlab.com/glycoinfo/sugardrawer/SugarSketcher2.git
   Fetched as a dependency of SugarDrawer (see sugardrawer/package.json)
-
-CDN-Loaded Libraries (not redistributed here)
-- Bootstrap — MIT License
+- Bootstrap 5.3.2 — MIT License
   https://getbootstrap.com/
-  License: https://github.com/twbs/bootstrap/blob/main/LICENSE
-- Font Awesome Free — Font Awesome Free License
+  License: vendor/bootstrap/LICENSE
+- Font Awesome Free 6.4.0 — Font Awesome Free License
   https://fontawesome.com/
-  License: https://fontawesome.com/license/free
-- Pako — MIT License
+  License: vendor/fontawesome/LICENSE.txt
+- Pako 2.1.0 — MIT License
   https://github.com/nodeca/pako
-  License: https://github.com/nodeca/pako/blob/master/LICENSE
+  License: vendor/pako/LICENSE
+- js-yaml 5.5.0 — MIT License
+  https://github.com/nodeca/js-yaml
+  License: vendor/js-yaml/LICENSE
+- Semantic UI CSS 2.2.10 — MIT License
+  https://github.com/Semantic-Org/Semantic-UI-CSS
+  License: vendor/semantic/LICENSE
+  The vendored stylesheet removes the external Lato font import; local fallbacks are used.
+- D3 3.5.17 — BSD 3-Clause License
+  https://d3js.org/
+  License: vendor/d3/LICENSE
 
 External Services / APIs (client-side calls from the browser)
 - GlyGen API — https://www.glygen.org/

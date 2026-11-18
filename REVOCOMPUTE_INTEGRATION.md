@@ -1,10 +1,18 @@
 # REvoCompute integration for `jaag-core`
 
+> **Version boundary:** The registry plugin described below is a legacy
+> compatibility artifact. The current REvoCompute workspace uses a module-based
+> `WorkspacePlugin`/`WorkspaceContext`; it does not consume this registry
+> directly. The new host-neutral full-workbench adapter is documented in
+> [Input Builder integration](integration/input-builder/README.md). Adapting
+> it to the current REvoCompute lifecycle, task persistence and clone flow is
+> downstream work and is not supplied by this repository.
+
 This document describes the dependency-free JAAG core extracted into
 `shared/`, the two distributable bundles built from it, the REvoCompute
-input-workspace plugin contract that the builder bundle satisfies, and the
-exact steps to replace the duplicated `jaag-builder` stubs in the
-[REvoCompute](https://github.com/YaoYinYing/REvoCompute) Docker runners.
+legacy registry contract that the builder bundle satisfies, and historical
+integration steps for older REvoCompute runners. These steps are not the
+current workspace plugin API.
 
 ---
 

@@ -1,4 +1,4 @@
-/* Modified by Chin Huang at University of Georgia for JAAG on 2025-10-01: integration and export behavior tweaks. */
+/* Modified by Chin Huang at University of Georgia for JAAG on 2025-10-01; modified for same-origin message validation by BioNuTA contributors in 2026. */
 "use strict";
 
 import React from "react";
@@ -44,7 +44,8 @@ export class Interface extends React.Component {
 
         // Set up message listener for parent window commands
         window.addEventListener('message', (event) => {
-            if (event.data && event.data.type === 'SUGARDRAWER_CLEAR_CANVAS') {
+            if (window.location.origin !== 'null' && event.origin === window.location.origin
+                && event.source === window.parent && event.data && event.data.type === 'SUGARDRAWER_CLEAR_CANVAS') {
                 this.clearCanvas();
             }
         });
@@ -457,7 +458,7 @@ export class Interface extends React.Component {
         };
 
         try {
-            window.parent.postMessage(messageData, '*');
+            window.parent.postMessage(messageData, window.location.origin);
         } catch (error) {
             // Fallback to console log if parent communication fails
         }
@@ -483,7 +484,7 @@ export class Interface extends React.Component {
             };
 
             try {
-                window.parent.postMessage(messageData, '*');
+                window.parent.postMessage(messageData, window.location.origin);
 
                 // NOTE: Canvas will be cleared by parent window after successful validation
                 // This prevents clearing the canvas when validation fails
@@ -518,7 +519,7 @@ export class Interface extends React.Component {
 
             // Post message to parent window
             try {
-                window.parent.postMessage(messageData, '*');
+                window.parent.postMessage(messageData, window.location.origin);
 
                 // NOTE: Canvas will be cleared by parent window after successful validation
                 // Parent will send SUGARDRAWER_CLEAR_CANVAS message on success

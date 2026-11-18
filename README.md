@@ -57,9 +57,8 @@ requires every byte payload again and verifies its size, digest, slot, and
 relative path. It rejects missing or mismatched files. Each file is limited to
 20 MiB, all files to 100 MiB, and the document to 20 MiB. SHA-256 requires Web
 Crypto, available in secure browser contexts. Target-specific validation and
-serialization remain the caller's responsibility. This module is a building
-block; the full editor host lifecycle and restorable authoring snapshot are
-not yet implemented by this interface.
+serialization remain the caller's responsibility. See the [Input Builder
+integration](integration/input-builder/README.md) for the workbench lifecycle.
 
 #### JAAG target compatibility
 

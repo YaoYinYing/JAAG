@@ -116,7 +116,10 @@ export async function resolveInputDependencies(document, dependencies, resolve) 
     if (manifestCopy.length !== slots.length) throw new Error('Dependency manifest does not match the document');
     const manifest = new Map();
     for (const item of manifestCopy) {
-        if (!item || typeof item !== 'object' || manifest.has(item.id)) throw new Error('Invalid dependency manifest');
+        if (!item || typeof item !== 'object' || Array.isArray(item) || manifest.has(item.id)
+            || Object.keys(item).some(key => !['id', 'kind', 'slot', 'name', 'size', 'sha256', 'mime'].includes(key))) {
+            throw new Error('Invalid dependency manifest');
+        }
         manifest.set(item.id, item);
     }
     const files = [];

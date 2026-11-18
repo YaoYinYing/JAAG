@@ -2,6 +2,23 @@
 // This module handles integration with the official SugarDrawer component
 // Based on research from GitLab: https://gitlab.com/glycoinfo/sugardrawer/sugardrawer
 
+// SugarDrawer is served locally. Never accept scientific data from another frame.
+function isTrustedSugarDrawerMessage(event, frameId) {
+    const frame = document.getElementById(frameId);
+    const data = event.data;
+    if (!frame?.contentWindow || event.source !== frame.contentWindow || event.origin !== location.origin
+        || location.origin === 'null' || !data || typeof data !== 'object' || Array.isArray(data)
+        || typeof data.type !== 'string' || data.type.length > 80) return false;
+    for (const field of ['glycoct', 'wurcs', 'message', 'notificationType', 'action']) {
+        if (data[field] !== undefined && (typeof data[field] !== 'string' || data[field].length > 2 * 1024 * 1024)) return false;
+    }
+    if (['SUGARDRAWER_ONE_CLICK_EXPORT', 'SUGARDRAWER_ADD_TO_JSON'].includes(data.type) && typeof data.glycoct !== 'string') return false;
+    for (const field of ['requestClose', 'requestChainId']) {
+        if (data[field] !== undefined && typeof data[field] !== 'boolean') return false;
+    }
+    return true;
+}
+
 class SugarDrawerIntegration {
     constructor() {
         this.isLoaded = false;
@@ -48,6 +65,7 @@ class SugarDrawerIntegration {
                             <div class="card-body p-0" style="height: 675px; overflow: hidden;">
                                 <iframe 
                                     id="sugarDrawerFrame"
+                                    title="SugarDrawer glycan editor"
                                     src="sugardrawer/dist/index.html"
                                     width="100%" 
                                     height="700"
@@ -125,19 +143,9 @@ class SugarDrawerIntegration {
 
     // Setup postMessage communication with SugarDrawer iframe
     setupPostMessageCommunication() {
-        window.addEventListener('message', (event) => {
-
-            // Security check - ensure message is from SugarDrawer (local or remote)
-            if (event.origin === null ||
-                event.origin === 'null' ||  // Handle string "null"
-                event.origin === 'https://pages.glycosmos.org' ||
-                (event.origin && event.origin.startsWith('http://127.0.0.1')) ||
-                (event.origin && event.origin.startsWith('http://localhost')) ||
-                (event.origin && event.origin.includes('ngrok-free.app'))) {
-                // Origin accepted
-            } else {
-                return;
-            }
+        if (this.messageHandler) window.removeEventListener('message', this.messageHandler);
+        this.messageHandler = (event) => {
+            if (!isTrustedSugarDrawerMessage(event, 'sugarDrawerFrame')) return;
 
             // Check if popup handlers are active - if so, let them handle popup-specific messages
             const isPopupActive = window.popupMessageHandler !== undefined;
@@ -161,7 +169,8 @@ class SugarDrawerIntegration {
             } else if (event.data.type === 'SUGARDRAWER_NOTIFICATION') {
                 this.handleNotification(event.data);
             }
-        });
+        };
+        window.addEventListener('message', this.messageHandler);
 
     }
 
@@ -340,7 +349,7 @@ class SugarDrawerIntegration {
             
             // Generate JSON
             try {
-                window.app.generateJSON();
+                window.app.debounceGenerate();
             } catch (error) {
                 window.app.showError('Error generating JSON: ' + error.message);
             }

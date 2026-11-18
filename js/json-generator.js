@@ -3,7 +3,7 @@
 /**
  * Enhanced JSON generation with proper sequence data integration
  */
-AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function({ includeDerived = true } = {}) {
+AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
     const jobName = document.getElementById('jobName').value || 'Untitled_Job';
     const version = parseInt(document.getElementById('version').value);
     // Get model seeds from multiple seeds input
@@ -91,7 +91,7 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function({ includeDeri
                     sequences.push(seqData);
 
                     // Process glycosylation sites for protein multimers
-                    if (includeDerived && seq.type === 'protein') {
+                    if (seq.type === 'protein') {
                         const hasManualSites = seq.data._glycosylationSites && seq.data._glycosylationSites.length > 0;
                         const hasSequonSites = seq.data._sequonSites && seq.data._sequonSites.length > 0;
 
@@ -121,7 +121,7 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function({ includeDeri
                     const hasManualSites = seq.data._glycosylationSites && seq.data._glycosylationSites.length > 0;
                     const hasSequonSites = seq.data._sequonSites && seq.data._sequonSites.length > 0;
                     
-                    if (includeDerived && seq.type === 'protein' && (hasManualSites || hasSequonSites)) {
+                    if (seq.type === 'protein' && (hasManualSites || hasSequonSites)) {
                         try {
                             const glycoResult = await processGlycosylationSites(seq.data._proteinSequenceId, seqData.protein.id);
                             if (glycoResult.ligands.length > 0 || glycoResult.bonds.length > 0) {
@@ -185,7 +185,7 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function({ includeDeri
     
     // Collect bondedAtomPairs from glycan sequences
     this.sequences.forEach(seq => {
-        if (includeDerived && seq.type === 'ligand' && seq.bondedAtomPairs && Array.isArray(seq.bondedAtomPairs)) {
+        if (seq.type === 'ligand' && seq.bondedAtomPairs && Array.isArray(seq.bondedAtomPairs)) {
             seq.bondedAtomPairs.forEach(bond => {
                 validBonds.push(bond);
             });

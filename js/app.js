@@ -17,7 +17,7 @@ class AlphaFold3Generator {
         this.loadSugarDrawer();
         
         // Generate initial JSON
-        setTimeout(() => {
+        this.initialGenerateTimeout = setTimeout(() => {
             this.generateJSON();
         }, 100);
     }
@@ -44,6 +44,7 @@ class AlphaFold3Generator {
         // Invalidate both in-flight work and the previous output immediately on edit.
         this.generation = (this.generation || 0) + 1;
         this.lastValidation = null;
+        if (typeof CustomEvent === 'function') document.dispatchEvent(new CustomEvent('bionuta-change', { detail: { revision: this.generation } }));
         const status = document.getElementById('validationStatus');
         if (status) {
             status.textContent = 'Updating input preview…';
@@ -121,9 +122,9 @@ class AlphaFold3Generator {
         }
     }
 
-    async buildSupersetDocument(target = this.getOutputTarget(), options = {}) {
+    async buildSupersetDocument(target = this.getOutputTarget()) {
         // Keep the mature DOM collector as a migration bridge; adapters consume only the neutral document.
-        const collectedJob = await this.buildAlphaFold3JSON(options);
+        const collectedJob = await this.buildAlphaFold3JSON();
         const core = await window.JAAGCoreReady;
         return { collectedJob, inputDocument: core.fromAlphaFold3(collectedJob, { target }), core };
     }
