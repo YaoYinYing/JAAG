@@ -41,6 +41,11 @@ class AlphaFold3Generator {
 
     debounceGenerate() {
         if (this.isRestoringSharedInput) return;
+        // Invalidate both in-flight work and the previous output immediately on edit.
+        this.generation = (this.generation || 0) + 1;
+        this.lastValidation = null;
+        const status = document.getElementById('validationStatus');
+        if (status) status.textContent = 'Updating input preview…';
         clearTimeout(this.generateTimeout);
         this.generateTimeout = setTimeout(() => {
             this.generateJSON();
@@ -122,9 +127,12 @@ class AlphaFold3Generator {
 
     async generateJSON() {
         if (this.isRestoringSharedInput) return;
+        const generation = this.generation = (this.generation || 0) + 1;
+        this.lastValidation = null;
         try {
             const outputTarget = this.getOutputTarget();
             const { collectedJob, inputDocument, core } = await this.buildSupersetDocument(outputTarget);
+            if (generation !== this.generation || this.isRestoringSharedInput) return;
             const conversion = core.serialize(inputDocument, outputTarget);
             const targetConfig = core.TARGETS[outputTarget];
             const formValidation = this.validateJSON(collectedJob);
@@ -155,6 +163,7 @@ class AlphaFold3Generator {
             }
 
         } catch (error) {
+            if (generation !== this.generation || this.isRestoringSharedInput) return;
             this.lastValidation = { valid: false, errors: [error.message], warnings: [] };
             const outputElement = document.getElementById('jsonOutput');
             if (outputElement) outputElement.textContent = `Error: ${error.message}`;
