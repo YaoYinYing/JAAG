@@ -421,89 +421,28 @@ document.addEventListener('DOMContentLoaded', function() {
     updateActiveUserCCDsDisplay();
 });
 
-/**
- * Find all CCD codes currently used in sequences
- * @returns {Set} - Set of CCD codes in use
- */
-function getAllUsedCCDCodes() {
-    const usedCCDs = new Set();
-    
-    if (!window.app) {
-        return usedCCDs;
-    }
-    
-    // Check sequences for ligand CCD codes
-    if (window.app.sequences) {
-        for (const sequence of window.app.sequences) {
-            if (sequence.type === 'ligand' && sequence.data && sequence.data.ligand && sequence.data.ligand.ccdCodes) {
-                for (const ccdCode of sequence.data.ligand.ccdCodes) {
-                    usedCCDs.add(ccdCode);
-                }
-            }
+/** Merge derived components without replacing manually authored data. */
+function mergeAutomaticUserCCDs(destination, entries, source = 'automatic-glycan') {
+    for (const [id, data] of Object.entries(entries || {})) {
+        const existing = destination[id];
+        if (!existing || String(existing.source || '').startsWith('automatic')) {
+            destination[id] = { ...data, source };
         }
     }
-
-    // The form-backed editor and the last generated document also contain CCD
-    // references; sequence.data only covers legacy SugarDrawer entities.
-    document.querySelectorAll('[id$="_ccdCodes"]').forEach(input => {
-        for (const code of input.value.split(/[\s,]+/)) if (code) usedCCDs.add(code);
-    });
-    for (const entity of window.app.lastInputDocument?.job?.entities || []) {
-        for (const code of entity.ligand?.ccdCodes || []) usedCCDs.add(code);
-    }
-    
-    // Check active glycans for CCD codes
-    if (window.activeGlycans) {
-        for (const glycan of window.activeGlycans) {
-            if (glycan.ccdCodes) {
-                for (const ccdCode of glycan.ccdCodes) {
-                    usedCCDs.add(ccdCode);
-                }
-            }
-        }
-    }
-    
-    // Check glycan userCCDs that might be currently active
-    if (window.app.glycanUserCCDs) {
-        const glycanUserCCDIds = Object.keys(window.app.glycanUserCCDs);
-        for (const ccdId of glycanUserCCDIds) {
-            // Check if this glycan userCCD is referenced anywhere
-            if (window.app.sequences) {
-                for (const sequence of window.app.sequences) {
-                    if (sequence.type === 'ligand' && sequence.data && sequence.data.ligand && sequence.data.ligand.ccdCodes) {
-                        if (sequence.data.ligand.ccdCodes.includes(ccdId)) {
-                            usedCCDs.add(ccdId);
-                        }
-                    }
-                }
-            }
-            
-            // Check if referenced in active glycans
-            if (window.activeGlycans) {
-                for (const glycan of window.activeGlycans) {
-                    if (glycan.ccdCodes && glycan.ccdCodes.includes(ccdId)) {
-                        usedCCDs.add(ccdId);
-                    }
-                }
-            }
-        }
-    }
-    
-    return usedCCDs;
 }
 
 /**
- * Clean up unused userCCDs from the JSON
- * Removes userCCD entries that are no longer referenced by any sequence
+ * Remove unused automatic CCDs after a current collection establishes usage.
+ * Calls without a usage set defer cleanup until that collection completes.
  */
-function cleanupUnusedUserCCDs() {
+function cleanupUnusedUserCCDs(usedCCDs) {
     if (!window.app) {
         return 0;
     }
     
     
-    // Get all CCD codes currently in use
-    const usedCCDs = getAllUsedCCDCodes();
+    // Defer deletion until a fresh complete collection supplies current usage.
+    if (!(usedCCDs instanceof Set)) return 0;
     
     let removedCount = 0;
     const unusedUserCCDs = [];
@@ -572,8 +511,7 @@ function cleanupUnusedUserCCDs() {
 }
 
 /**
- * Auto-cleanup userCCDs after ligand removal
- * This should be called whenever a ligand is removed
+ * Legacy deletion hook. Cleanup is deferred until current usage is known.
  */
 function autoCleanupUserCCDs() {
     return cleanupUnusedUserCCDs();
@@ -587,6 +525,7 @@ window.removeUserCCD = removeUserCCD;
 window.clearAllUserCCDs = clearAllUserCCDs;
 window.getAllUsedCCDCodes = getAllUsedCCDCodes;
 window.cleanupUnusedUserCCDs = cleanupUnusedUserCCDs;
+window.mergeAutomaticUserCCDs = mergeAutomaticUserCCDs;
 /**
  * Auto-expand Active UserCCD Components section when data is present
  */

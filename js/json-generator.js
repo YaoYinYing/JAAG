@@ -3,7 +3,7 @@
 /**
  * Enhanced JSON generation with proper sequence data integration
  */
-AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
+AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function(generation) {
     const jobName = document.getElementById('jobName').value || 'Untitled_Job';
     const version = parseInt(document.getElementById('version').value);
     // Get model seeds from multiple seeds input
@@ -146,6 +146,12 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
     // Consolidate identical glycans that come from multimer counts (same site, same structure, different chains)
     const consolidatedGlycanLigands = this.consolidateMultimerGlycans(allGlycanLigands);
     sequences.push(...consolidatedGlycanLigands);
+
+    // Only a complete, current collection can establish which derived CCDs
+    // remain referenced. Never prune from a stale asynchronous calculation.
+    if (generation !== undefined && generation !== this.generation) throw new Error('Editor changed during collection');
+    const usedCCDs = new Set(sequences.flatMap(entity => entity.ligand?.ccdCodes || []));
+    window.cleanupUnusedUserCCDs?.(usedCCDs);
     
 
     const jsonData = {
@@ -204,13 +210,9 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
     }
 
     // Add UserCCD data if available
-    const allUserCCDs = { ...this.userCCDs };
+    const allUserCCDs = { ...this.glycanUserCCDs, ...this.userCCDs };
     
     // Add userCCD data from glycosylation sites
-    if (window.app.glycanUserCCDs && Object.keys(window.app.glycanUserCCDs).length > 0) {
-        Object.assign(allUserCCDs, window.app.glycanUserCCDs);
-    }
-    
     if (allUserCCDs && Object.keys(allUserCCDs).length > 0) {
         
         // Check if we have inline userCCD data or file paths

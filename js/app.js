@@ -122,9 +122,9 @@ class AlphaFold3Generator {
         }
     }
 
-    async buildSupersetDocument(target = this.getOutputTarget()) {
+    async buildSupersetDocument(target = this.getOutputTarget(), generation) {
         // Keep the mature DOM collector as a migration bridge; adapters consume only the neutral document.
-        const collectedJob = await this.buildAlphaFold3JSON();
+        const collectedJob = await this.buildAlphaFold3JSON(generation);
         const core = await window.JAAGCoreReady;
         return { collectedJob, inputDocument: core.fromAlphaFold3(collectedJob, { target }), core };
     }
@@ -139,7 +139,7 @@ class AlphaFold3Generator {
         this.lastValidation = null;
         try {
             const outputTarget = this.getOutputTarget();
-            const { collectedJob, inputDocument, core } = await this.buildSupersetDocument(outputTarget);
+            const { collectedJob, inputDocument, core } = await this.buildSupersetDocument(outputTarget, generation);
             if (generation !== this.generation || this.isRestoringSharedInput) return;
             const conversion = core.serialize(inputDocument, outputTarget);
             const targetConfig = core.TARGETS[outputTarget];

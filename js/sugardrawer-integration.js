@@ -295,11 +295,12 @@ class SugarDrawerIntegration {
                 }
                 
                 // Merge required userCCDs and track them as automatic
-                Object.assign(window.app.userCCDs, substituentResult.requiredUserCCDs);
+                window.mergeAutomaticUserCCDs(window.app.userCCDs, substituentResult.requiredUserCCDs, 'automatic-substituent');
 
                 // Also track these userCCDs as automatic for display filtering
                 if (window.trackUserCCD) {
                     Object.keys(substituentResult.requiredUserCCDs).forEach(userCCDId => {
+                        if (!String(window.app.userCCDs[userCCDId]?.source || '').startsWith('automatic')) return;
                         window.trackUserCCD({
                             componentId: userCCDId,
                             method: 'automatic-sugardrawer',

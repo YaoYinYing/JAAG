@@ -1142,7 +1142,7 @@ async function addLigandTypeData(sequenceId, ligandObj) {
                                 if (!window.app.userCCDs) {
                                     window.app.userCCDs = {};
                                 }
-                                Object.assign(window.app.userCCDs, substituentResult.requiredUserCCDs);
+                                window.mergeAutomaticUserCCDs(window.app.userCCDs, substituentResult.requiredUserCCDs, 'automatic-substituent');
                             }
                         }
                     }
@@ -2349,6 +2349,7 @@ function addBondedAtomPair() {
             app.debounceGenerate();
         });
     });
+    app.debounceGenerate();
 }
 
 function updateBondedAtomPair(bondId) {
@@ -2935,7 +2936,7 @@ async function processSequonGlycoCTInput(siteId, sequenceId) {
                         if (!window.app.userCCDs) {
                             window.app.userCCDs = {};
                         }
-                        Object.assign(window.app.userCCDs, substituentResult.requiredUserCCDs);
+                        window.mergeAutomaticUserCCDs(window.app.userCCDs, substituentResult.requiredUserCCDs, 'automatic-substituent');
                     }
                 }
             }
@@ -3640,7 +3641,7 @@ async function processGlycoCTInput(siteId, sequenceId) {
                         if (!window.app.userCCDs) {
                             window.app.userCCDs = {};
                         }
-                        Object.assign(window.app.userCCDs, substituentResult.requiredUserCCDs);
+                        window.mergeAutomaticUserCCDs(window.app.userCCDs, substituentResult.requiredUserCCDs, 'automatic-substituent');
                     }
                 }
             }
@@ -4206,7 +4207,7 @@ async function processGlycosylationSites(sequenceId, proteinChainId, multimerCha
                         if (!window.app.userCCDs) {
                             window.app.userCCDs = {};
                         }
-                        Object.assign(window.app.userCCDs, substituentResult.requiredUserCCDs);
+                        window.mergeAutomaticUserCCDs(window.app.userCCDs, substituentResult.requiredUserCCDs, 'automatic-substituent');
                     }
                 }
             }
@@ -4246,7 +4247,7 @@ async function processGlycosylationSites(sequenceId, proteinChainId, multimerCha
                     if (!window.app.glycanUserCCDs) {
                         window.app.glycanUserCCDs = {};
                     }
-                    Object.assign(window.app.glycanUserCCDs, converted.userCCDs);
+                    window.mergeAutomaticUserCCDs(window.app.glycanUserCCDs, converted.userCCDs, 'automatic-glycan');
                 }
             } else {
                 throw new Error(`No residues could be converted for glycan at position ${site.position}`);
@@ -4299,6 +4300,8 @@ async function applyLigandCCDReplacements(ccdCodes) {
  */
 async function registerLigandUserCCD(newCcdCode, originalCcdCode) {
     try {
+        const existing = window.app?.userCCDs?.[newCcdCode];
+        if (existing && !String(existing.source || '').startsWith('automatic')) return;
         // Check if we already have this userCCD registered
         if (window.app && window.app.glycanUserCCDs && window.app.glycanUserCCDs[newCcdCode]) {
             return;

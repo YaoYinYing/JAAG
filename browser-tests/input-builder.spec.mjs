@@ -109,15 +109,24 @@ test('restore rejects mismatched files and an edit made while it waits; destroy 
         release();
         const rejectedEdit = await pending;
         const editPreserved = holder.querySelector('iframe') === frame && sequence.value === 'MNNSTAAA';
+        let bondStarted, releaseBond;
+        const bondReady = new Promise(resolve => { bondStarted = resolve; });
+        const bondGate = new Promise(resolve => { releaseBond = resolve; });
+        const pendingBond = builder.restore(first.snapshot, async () => { bondStarted(); await bondGate; return first.dependencies[0].bytes; }).then(() => false, () => true);
+        await bondReady;
+        w.addBondedAtomPair();
+        releaseBond();
+        const rejectedBond = await pendingBond;
+        const bondPreserved = holder.querySelector('iframe') === frame && w.app.bondedAtomPairs.length === 1;
         let startedAgain, observedSignal;
         const waiting = new Promise(resolve => { startedAgain = resolve; });
         const cancelled = builder.restore(first.snapshot, (_slot, { signal }) => { observedSignal = signal; startedAgain(); return new Promise(() => {}); }).then(() => false, () => true);
         await waiting;
         builder.destroy();
         const cancelledPromptly = await Promise.race([cancelled, new Promise(resolve => setTimeout(() => resolve(false), 1000))]);
-        return { mismatch, intactAfterMismatch, rejectedEdit, editPreserved, cancelledPromptly, signalAborted: observedSignal.aborted, frames: holder.querySelectorAll('iframe').length };
+        return { mismatch, intactAfterMismatch, rejectedEdit, editPreserved, rejectedBond, bondPreserved, cancelledPromptly, signalAborted: observedSignal.aborted, frames: holder.querySelectorAll('iframe').length };
     });
-    expect(result).toEqual({ mismatch: true, intactAfterMismatch: true, rejectedEdit: true, editPreserved: true, cancelledPromptly: true, signalAborted: true, frames: 0 });
+    expect(result).toEqual({ mismatch: true, intactAfterMismatch: true, rejectedEdit: true, editPreserved: true, rejectedBond: true, bondPreserved: true, cancelledPromptly: true, signalAborted: true, frames: 0 });
 });
 
 test('a synthetic glycosylation site round trips with identical output', async ({ page }) => {
@@ -240,6 +249,7 @@ test('glycan and automatic CCD cleanup preserve unrelated authored inputs', asyn
         w.activeUserCCDs = [{ componentId: 'MANUAL', method: 'inline' }];
         w.confirm = () => true;
         w.clearAllGlycans();
+        w.cleanupUnusedUserCCDs(new Set());
         return {
             remaining: w.app.sequences.map(sequence => sequence.id),
             ccds: Object.keys(w.app.userCCDs)
@@ -324,4 +334,75 @@ test('SugarDrawer loads a real core structure and exports it into the workbench'
     await page.locator('#generate').click();
     await expect(page.locator('#ownership')).toContainText('builder');
     expect(external).toEqual([]);
+});
+
+test('adding an incomplete bond immediately invalidates a bound input', async ({ page }) => {
+    const editor = await openBuilder(page, 'alphafold3');
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    await editor.locator('button[onclick="addBondedAtomPair()"]').click();
+    await expect(page.locator('#ownership')).toContainText('empty');
+    await page.locator('#generate').click();
+    await expect(page.locator('#status')).toContainText('Resolve validation errors');
+    await expect(page.locator('#ownership')).toContainText('empty');
+});
+
+test('removing an automatic CCD ligand removes its generated component', async ({ page }) => {
+    const editor = await openBuilder(page, 'alphafold3');
+    await editor.locator("button[onclick=\"addSequence('ligand')\"]").click();
+    await editor.locator('#seq_2_ligandType').selectOption('ccd');
+    await editor.locator('#seq_2_ccdCodes').fill('SIA');
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    expect(await page.locator('#output').textContent()).toContain('SIA-2');
+    await editor.locator('body').evaluate(() => window.removeSequence('seq_2'));
+    await expect(page.locator('#ownership')).toContainText('empty');
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    const result = await page.locator('#builder iframe').evaluate(frame => ({
+        stored: Object.keys(frame.contentWindow.app.userCCDs || {}),
+        components: frame.contentWindow.app.lastInputDocument.job.customComponents || null
+    }));
+    expect(result).toEqual({ stored: [], components: null });
+});
+
+test('shared glycan substituent CCD survives until its last ligand is removed', async ({ page }) => {
+    const editor = await openBuilder(page, 'alphafold3');
+    const glyco = 'RES\n1b:b-dglc-HEX-1:5\n2s:sulfate\nLIN\n1:1o(6+1)2n';
+    for (const id of [2, 3]) {
+        await editor.locator("button[onclick=\"addSequence('ligand')\"]").click();
+        await editor.locator(`#seq_${id}_glycoCT`).fill(glyco);
+    }
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    expect(await page.locator('#output').textContent()).toContain('SO4-2');
+    await editor.locator('body').evaluate(() => window.removeSequence('seq_2'));
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    expect(await page.locator('#output').textContent()).toContain('SO4-2');
+    await editor.locator('body').evaluate(() => window.removeSequence('seq_3'));
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    const output = await page.locator('#output').textContent();
+    expect(output).not.toContain('SO4-2');
+    expect(output).not.toContain('userCCD');
+});
+
+test('automatic glycan CCDs do not overwrite a manual component with the same ID', async ({ page }) => {
+    const editor = await openBuilder(page, 'alphafold3');
+    await editor.locator('body').evaluate(() => {
+        document.getElementById('inlineUserCCD').click();
+        document.getElementById('userCCDId').value = 'SO4-2';
+        document.getElementById('userCCDInput').value = 'data_MANUAL\n_chem_comp.id SO4-2';
+        window.addUserCCDToJSON();
+    });
+    await editor.locator("button[onclick=\"addSequence('ligand')\"]").click();
+    await editor.locator('#seq_2_glycoCT').fill('RES\n1b:b-dglc-HEX-1:5\n2s:sulfate\nLIN\n1:1o(6+1)2n');
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    expect(await page.locator('#output').textContent()).toContain('data_MANUAL');
+    await editor.locator('body').evaluate(() => window.removeSequence('seq_2'));
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    expect(await page.locator('#output').textContent()).toContain('data_MANUAL');
 });
