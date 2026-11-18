@@ -220,10 +220,14 @@ class AlphaFold3Generator {
                 color = '#17a2b8';
         }
         
-        logEntry.innerHTML = `
-            <span style="color: ${color}; font-weight: bold;">[${timestamp}] ${icon} ${level}:</span>
-            <span style="margin-left: 8px;">${message}</span>
-        `;
+        const heading = document.createElement('span');
+        heading.style.color = color;
+        heading.style.fontWeight = 'bold';
+        heading.textContent = `[${timestamp}] ${icon} ${level}:`;
+        const detail = document.createElement('span');
+        detail.style.marginLeft = '8px';
+        detail.textContent = message;
+        logEntry.append(heading, detail);
         
         // Clear placeholder text if this is the first real entry
         if (debugLog.children.length === 1 && debugLog.children[0].classList.contains('text-muted')) {
@@ -254,10 +258,11 @@ class AlphaFold3Generator {
                 <div class="me-2">
                     ${this.getToastIcon(type)}
                 </div>
-                <div class="flex-grow-1">${message}</div>
+                <div class="flex-grow-1"></div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
+        toast.querySelector('.flex-grow-1').textContent = message;
 
         // Add to container
         toastContainer.appendChild(toast);

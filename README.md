@@ -446,7 +446,7 @@ boltz predict input.yaml --use_msa_server
 - **Validation Required**: Resolve JAAG validation errors before submitting an input file to any target
 - **Sequence Limits**: Be aware of AlphaFold 3 sequence length limitations (around 5000 tokens)
 - **Database Availability**: External database lookups depend on server availability
-- **Privacy**: Normal editing stays in the browser. Share links contain compressed input data in their URL; compression is not encryption, and the URL may appear in browser history or server logs. When using glycan lookup features, the app makes direct client-side requests to third-party APIs (e.g., GlyGen, GlyTouCan).
+- **Privacy**: Normal editing stays in the browser. Share links contain compressed input data in their URL; compression is not encryption, and the URL may appear in browser history or server logs. The optional Lookup action sends glycan structures to GlyGen and GlyCosmos; the UniProt import action sends the entered accession to UniProt. Both are direct client-side requests to those services.
 
 ## Acknowledgments
 

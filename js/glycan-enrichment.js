@@ -9,6 +9,9 @@
  */
 async function enrichGlycanData() {
     try {
+        if (!window.app?.lastValidation?.valid || window.app.lastOutputTarget !== 'alphafold3') {
+            throw new Error('Lookup requires a valid, up-to-date AlphaFold 3 preview');
+        }
         // Get current JSON data
         const jsonOutput = document.getElementById('jsonOutput');
         const jsonText = jsonOutput.textContent || jsonOutput.innerText;
@@ -1037,7 +1040,8 @@ function showEnrichmentStatus(message, type = 'info') {
                 break;
         }
 
-        statusElement.innerHTML = `<i class="fas ${icon} me-1"></i>${message}`;
+        statusElement.innerHTML = `<i class="fas ${icon} me-1" aria-hidden="true"></i>`;
+        statusElement.appendChild(document.createTextNode(message));
         statusElement.className = `small ${className}`;
     }
 
