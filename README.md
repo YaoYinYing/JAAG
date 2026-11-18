@@ -37,6 +37,27 @@ Chai-1, Boltz, BioEmu2, and Mol-1
 adapters then serialize that document to the selected output format. This keeps
 form collection, common validation, and target conversion separate.
 
+### Binding file dependencies
+
+The DOM-free `shared/input-dependencies.mjs` module prepares a **valid** neutral
+document for a host that can supply file bytes. `captureInputDependencies`
+enumerates path-backed MSA, template, ligand, and custom CCD slots. Its resolver
+receives a logical ID, kind, and slot, never the original path or URL; it must
+explicitly return `{name, mime, bytes}` with `bytes` as a `Uint8Array`. The
+result contains a copied document with safe runner-relative paths, a manifest
+with sizes and SHA-256 digests, and separate bytes. The source document is not
+modified and the module never fetches a path or URL.
+
+Persist the document and manifest separately from the bytes. Before using a
+restored document, `resolveInputDependencies(document, manifest, resolver)`
+requires every byte payload again and verifies its size, digest, slot, and
+relative path. It rejects missing or mismatched files. Each file is limited to
+20 MiB, all files to 100 MiB, and the document to 20 MiB. SHA-256 requires Web
+Crypto, available in secure browser contexts. Target-specific validation and
+serialization remain the caller's responsibility. This module is a building
+block; the full editor host lifecycle and restorable authoring snapshot are
+not yet implemented by this interface.
+
 #### JAAG target compatibility
 
 The output "format" column notes the payload type each prediction target requests.

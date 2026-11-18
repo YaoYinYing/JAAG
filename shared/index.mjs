@@ -28,3 +28,12 @@ export {
     buildSuperset,
     parseSeeds
 } from './builder.mjs';
+
+export {
+    MAX_DEPENDENCY_BYTES,
+    MAX_TOTAL_DEPENDENCY_BYTES,
+    MAX_DEPENDENCIES,
+    MAX_DOCUMENT_BYTES,
+    captureInputDependencies,
+    resolveInputDependencies
+} from './input-dependencies.mjs';

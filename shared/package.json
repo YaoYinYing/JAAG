@@ -9,13 +9,15 @@
     ".": "./index.mjs",
     "./schema": "./jaag-schema.mjs",
     "./builder": "./builder.mjs",
-    "./share-payload": "./share-payload.mjs"
+    "./share-payload": "./share-payload.mjs",
+    "./input-dependencies": "./input-dependencies.mjs"
   },
   "files": [
     "index.mjs",
     "jaag-schema.mjs",
     "builder.mjs",
-    "share-payload.mjs"
+    "share-payload.mjs",
+    "input-dependencies.mjs"
   ],
   "license": "Apache-2.0"
 }
