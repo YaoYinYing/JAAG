@@ -1,5 +1,26 @@
 import { test, expect } from '@playwright/test';
 
+test('mount times out and removes the frame when core initialization stalls', async ({ page }) => {
+    await page.route('**/js/jaag-core-loader.js', route => route.fulfill({ contentType: 'application/javascript', body: 'window.JAAGCoreReady = new Promise(() => {});' }));
+    await page.goto('/integration/input-builder/harness.html');
+    const result = await page.evaluate(async () => {
+        const { mount } = await import('/integration/input-builder/index.mjs');
+        const holder = document.createElement('div');
+        document.body.append(holder);
+        const original = window.setTimeout;
+        window.setTimeout = (callback, delay, ...args) => original(callback, delay === 30000 ? 1000 : delay, ...args);
+        try {
+            await mount(holder, { target: 'alphafold3' });
+            return { error: '', frames: holder.querySelectorAll('iframe').length };
+        } catch (error) {
+            return { error: error.message, frames: holder.querySelectorAll('iframe').length };
+        } finally {
+            window.setTimeout = original;
+        }
+    });
+    expect(result).toEqual({ error: 'Input builder did not become ready', frames: 0 });
+});
+
 test('mount ignores an early iframe load', async ({ page }) => {
     await page.goto('/integration/input-builder/harness.html');
     const ready = await page.evaluate(async () => {

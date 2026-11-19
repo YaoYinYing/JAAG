@@ -96,7 +96,20 @@ export async function mount(container, { target, editorURL = DEFAULT_EDITOR.href
             if (destroyed) throw new Error('Input builder was destroyed');
             const child = frame.contentWindow;
             if (!child || child.location.origin !== url.origin || !child.BioNuTAEditorState || !child.app) throw new Error('Input builder is unavailable');
-            const core = await child.JAAGCoreReady;
+            const core = await new Promise((resolve, reject) => {
+                let settled = false;
+                const timer = setTimeout(() => finish(new Error('Input builder did not become ready')), READY_TIMEOUT_MS);
+                const finish = (error, value) => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    record.cancel = null;
+                    if (error) reject(error); else resolve(value);
+                };
+                record.cancel = () => finish(new Error('Input builder was destroyed'));
+                Promise.resolve(child.JAAGCoreReady).then(value => finish(null, value), finish);
+            });
+            if (destroyed) throw new Error('Input builder was destroyed');
             if (!Object.hasOwn(core.TARGETS, target)) throw new Error(`Unsupported target: ${target}`);
             record.window = child;
             record.api = child.BioNuTAEditorState;
