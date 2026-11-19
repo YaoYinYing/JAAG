@@ -7,16 +7,14 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function(generation) {
     const jobName = document.getElementById('jobName').value || 'Untitled_Job';
     const version = parseInt(document.getElementById('version').value);
     // Get model seeds from multiple seeds input
-    const modelSeedsInput = document.getElementById('modelSeedsMultiple').value || '1';
+    const modelSeedsInput = document.getElementById('modelSeedsMultiple').value;
 
     // Parse model seeds
-    const modelSeeds = modelSeedsInput.split(',')
-        .map(s => parseInt(s.trim()))
-        .filter(n => !isNaN(n));
-    
-    if (modelSeeds.length === 0) {
-        throw new Error('At least one model seed is required');
+    const seedParts = modelSeedsInput.split(',').map(seed => seed.trim());
+    if (seedParts.some(seed => !/^\d+$/.test(seed) || Number(seed) < 1 || Number(seed) > 4294967295)) {
+        throw new Error('Enter comma-separated model seeds from 1 to 4294967295');
     }
+    const modelSeeds = seedParts.map(Number);
 
     // Manual sites are intentional; detected sequons become attachments once a glycan is supplied.
     for (const seq of this.sequences.filter(item => item.type === 'protein')) {

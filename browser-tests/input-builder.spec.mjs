@@ -26,6 +26,22 @@ test('seed remains stable across a clone', async ({ page }) => {
     await expect(editor.locator('#modelSeedsMultiple')).toHaveValue('12345');
 });
 
+test('invalid seed text is preserved and cannot be materialized', async ({ page }) => {
+    const editor = await openBuilder(page, 'alphafold3');
+    const seeds = editor.locator('#modelSeedsMultiple');
+    for (const value of ['', '1,garbage', '1.5', '1,', '4294967296']) {
+        await seeds.evaluate((input, text) => {
+            input.value = text;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('blur'));
+        }, value);
+        await page.locator('#generate').click();
+        await expect(page.locator('#status')).toContainText('Resolve validation errors');
+        await expect(page.locator('#ownership')).toContainText('empty');
+        await expect(seeds).toHaveValue(value);
+    }
+});
+
 for (const target of ['alphafold3', 'opendde', 'bioemu2']) {
     test(`${target}: bind, clone, edit, and preserve an independent upload`, async ({ page }) => {
         const editor = await openBuilder(page, target);

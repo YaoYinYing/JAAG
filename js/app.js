@@ -464,43 +464,6 @@ function validateMultipleSeedsInput(input) {
 }
 
 function cleanupMultipleSeedsInput(input) {
-    let value = input.value.trim();
-
-    if (!value) {
-        return;
-    }
-
-    // Split by comma and validate each seed
-    const seeds = value.split(',');
-    const validSeeds = [];
-    const min = 1;
-    const max = 4294967295;
-
-    for (let seed of seeds) {
-        seed = seed.trim();
-
-        // Skip empty values
-        if (seed === '') continue;
-
-        // Remove non-numeric characters
-        seed = seed.replace(/[^0-9]/g, '');
-
-        const numValue = parseInt(seed);
-
-        if (numValue && numValue >= min && numValue <= max) {
-            validSeeds.push(numValue);
-        }
-    }
-
-    // Clean up and format the input with proper spacing
-    if (validSeeds.length > 0) {
-        input.value = validSeeds.join(', ');
-    } else if (value && validSeeds.length === 0) {
-        // If user entered something but all invalid, clear the field
-        input.value = '';
-    }
-
-    // Trigger JSON update after cleanup
     if (window.app) {
         window.app.debounceGenerate();
     }
