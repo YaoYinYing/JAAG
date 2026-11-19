@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="100 100 1054 1054" role="img" aria-labelledby="title">
+  <title id="title">BioNuTA — molecular assembly monogram</title>
+  <defs>
+    <mask id="node-gaps" maskUnits="userSpaceOnUse" x="100" y="100" width="1054" height="1054">
+      <rect x="100" y="100" width="1054" height="1054" fill="white"/>
+      <g fill="black">
+        <circle cx="250" cy="305" r="89"/>
+        <circle cx="250" cy="627" r="89"/>
+        <circle cx="250" cy="941" r="89"/>
+        <circle cx="596" cy="663" r="75"/>
+        <circle cx="994" cy="382" r="89"/>
+        <circle cx="994" cy="941" r="89"/>
+      </g>
+    </mask>
+  </defs>
+  <g fill="none" stroke="#54883f" stroke-width="94" stroke-linecap="round" stroke-linejoin="round" mask="url(#node-gaps)">
+    <path d="M260 330 V930 H455 C650 930 650 613 455 613 H260 M260 330 H465 C640 330 640 613 455 613"/>
+    <path d="M596 663 L688 590 L988 927 V382"/>
+  </g>
+  <g fill="#307da1">
+    <circle cx="250" cy="305" r="73"/>
+    <circle cx="250" cy="627" r="73"/>
+    <circle cx="250" cy="941" r="73"/>
+    <circle cx="994" cy="382" r="73"/>
+    <circle cx="994" cy="941" r="73"/>
+  </g>
+  <circle cx="596" cy="663" r="58" fill="#f2bf48"/>
+</svg>
