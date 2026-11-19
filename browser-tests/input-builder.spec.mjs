@@ -1,5 +1,24 @@
 import { test, expect } from '@playwright/test';
 
+test('mount ignores an early iframe load', async ({ page }) => {
+    await page.goto('/integration/input-builder/harness.html');
+    const ready = await page.evaluate(async () => {
+        const { mount } = await import('/integration/input-builder/index.mjs');
+        const holder = document.createElement('div');
+        document.body.append(holder);
+        const append = holder.append.bind(holder);
+        holder.append = frame => {
+            append(frame);
+            frame.dispatchEvent(new Event('load'));
+        };
+        const builder = await mount(holder, { target: 'alphafold3' });
+        const loaded = typeof holder.querySelector('iframe').contentWindow.addSequence === 'function';
+        builder.destroy();
+        return loaded;
+    });
+    expect(ready).toBe(true);
+});
+
 async function openBuilder(page, target) {
     await page.goto('/integration/input-builder/harness.html');
     await page.locator('#target').selectOption(target);

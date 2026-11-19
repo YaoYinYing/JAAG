@@ -81,7 +81,13 @@ export async function mount(container, { target, editorURL = DEFAULT_EDITOR.href
                 };
                 const timer = setTimeout(() => finish(new Error('Input builder did not become ready')), READY_TIMEOUT_MS);
                 record.cancel = () => finish(new Error('Input builder was destroyed'));
-                frame.addEventListener('load', () => finish(), { once: true });
+                frame.addEventListener('load', () => {
+                    try {
+                        if (frame.contentWindow.document.URL === url.href && frame.contentWindow.document.readyState === 'complete') finish();
+                    } catch {
+                        finish(new Error('Input builder navigated away'));
+                    }
+                });
                 frame.addEventListener('error', () => finish(new Error('Input builder failed to load')), { once: true });
             });
             frame.src = url.href;
