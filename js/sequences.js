@@ -97,11 +97,11 @@ function addSequence(type) {
     }
 
     // Auto-scroll to the newly added sequence
-    setTimeout(() => {
+    if (!window.app.isRestoringSharedInput) setTimeout(() => {
         const newSequenceElement = document.getElementById(`sequence_${sequenceId}`);
         if (newSequenceElement) {
             newSequenceElement.scrollIntoView({
-                behavior: 'smooth',
+                behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
                 block: 'start',
                 inline: 'nearest'
             });
@@ -133,7 +133,7 @@ function createProteinSequenceHTML(sequenceId) {
                 <span class="badge bg-secondary ms-2" id="${sequenceId}_chainBadge">-</span>
                 <i class="fas fa-chevron-down ms-2"></i>
             </button>
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSequence('${sequenceId}')">
+            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="Delete entity" onclick="removeSequence('${sequenceId}')">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -141,22 +141,22 @@ function createProteinSequenceHTML(sequenceId) {
             <div class="card-body">
             <div class="row">
                 <div class="col-md-2">
-                    <label class="form-label">Chain ID*</label>
+                    <label for="${sequenceId}_id" class="form-label">Chain ID*</label>
                     <input type="text" class="form-control" id="${sequenceId}_id" placeholder="" oninput="validateChainId(this); updateSequenceDataSync('${sequenceId}', 'protein');">
 
-                    <label class="form-label mt-3">Count</label>
+                    <label for="${sequenceId}_count" class="form-label mt-3">Count</label>
                     <input type="number" class="form-control" id="${sequenceId}_count" value="1" min="1" onchange="updateMultimerChains('${sequenceId}')">
                 </div>
                 <div class="col-md-10">
-                    <label class="form-label">Protein Sequence*</label>
-                    <div class="d-flex align-items-center mb-2">
-                        <label class="form-label me-3 mb-0">UniProt Import (optional)</label>
+                    <label for="${sequenceId}_sequence" class="form-label">Protein Sequence*</label>
+                    <div class="d-flex align-items-center mb-2 uniprot-import">
+                        <label for="${sequenceId}_uniprotId" class="form-label me-3 mb-0">UniProt Import (optional)</label>
                         <div class="input-group" style="max-width: 280px;">
                             <input type="text" class="form-control" id="${sequenceId}_uniprotId"
                                 placeholder="UniProt ID (e.g., P20273)" style="text-transform: uppercase;"
                                 oninput="this.value = this.value.toUpperCase()">
                             <button class="btn btn-outline-primary" type="button"
-                                onclick="fetchUniProtSequence('${sequenceId}')" title="Fetch sequence from UniProt">
+                                onclick="fetchUniProtSequence('${sequenceId}')" aria-label="Fetch sequence from UniProt" title="Fetch sequence from UniProt">
                                 <i class="fas fa-download"></i>
                             </button>
                         </div>
@@ -415,7 +415,7 @@ function createRNASequenceHTML(sequenceId) {
                 <span class="badge bg-secondary ms-2" id="${sequenceId}_chainBadge">-</span>
                 <i class="fas fa-chevron-down ms-2"></i>
             </button>
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSequence('${sequenceId}')">
+            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="Delete entity" onclick="removeSequence('${sequenceId}')">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -423,15 +423,15 @@ function createRNASequenceHTML(sequenceId) {
             <div class="card-body">
             <div class="row">
                 <div class="col-md-2">
-                    <label class="form-label">Chain ID*</label>
+                    <label for="${sequenceId}_id" class="form-label">Chain ID*</label>
                     <input type="text" class="form-control" id="${sequenceId}_id" placeholder="" oninput="validateChainId(this); updateSequenceDataSync('${sequenceId}', 'ligand');">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Count</label>
+                    <label for="${sequenceId}_count" class="form-label">Count</label>
                     <input type="number" class="form-control" id="${sequenceId}_count" value="1" min="1" onchange="updateMultimerChains('${sequenceId}')">
                 </div>
                 <div class="col-md-8">
-                    <label class="form-label">RNA Sequence*</label>
+                    <label for="${sequenceId}_sequence" class="form-label">RNA Sequence*</label>
                     <textarea class="form-control" id="${sequenceId}_sequence" rows="2"
                         placeholder="Enter RNA sequence (A, U, G, C)"
                         oninput="validateRNASequence(this); updateSequenceDataSync('${sequenceId}', 'rna');"></textarea>
@@ -561,7 +561,7 @@ function createDNASequenceHTML(sequenceId) {
                 <span class="badge bg-secondary ms-2" id="${sequenceId}_chainBadge">-</span>
                 <i class="fas fa-chevron-down ms-2"></i>
             </button>
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSequence('${sequenceId}')">
+            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="Delete entity" onclick="removeSequence('${sequenceId}')">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -569,15 +569,15 @@ function createDNASequenceHTML(sequenceId) {
             <div class="card-body">
             <div class="row">
                 <div class="col-md-2">
-                    <label class="form-label">Chain ID*</label>
+                    <label for="${sequenceId}_id" class="form-label">Chain ID*</label>
                     <input type="text" class="form-control" id="${sequenceId}_id" placeholder="" oninput="validateChainId(this); updateSequenceDataSync('${sequenceId}', 'ligand');">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Count</label>
+                    <label for="${sequenceId}_count" class="form-label">Count</label>
                     <input type="number" class="form-control" id="${sequenceId}_count" value="1" min="1" onchange="updateMultimerChains('${sequenceId}')">
                 </div>
                 <div class="col-md-8">
-                    <label class="form-label">DNA Sequence*</label>
+                    <label for="${sequenceId}_sequence" class="form-label">DNA Sequence*</label>
                     <textarea class="form-control" id="${sequenceId}_sequence" rows="2"
                         placeholder="Enter DNA sequence (A, T, G, C)"
                         oninput="validateDNASequence(this); updateSequenceDataSync('${sequenceId}', 'dna');"></textarea>
@@ -651,7 +651,7 @@ function createLigandSequenceHTML(sequenceId) {
                 <span class="badge bg-secondary ms-2" id="${sequenceId}_chainBadge">-</span>
                 <i class="fas fa-chevron-down ms-2"></i>
             </button>
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSequence('${sequenceId}')">
+            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="Delete entity" onclick="removeSequence('${sequenceId}')">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -659,11 +659,11 @@ function createLigandSequenceHTML(sequenceId) {
             <div class="card-body">
             <div class="row">
                 <div class="col-md-3">
-                    <label class="form-label">Chain ID*</label>
+                    <label for="${sequenceId}_id" class="form-label">Chain ID*</label>
                     <input type="text" class="form-control" id="${sequenceId}_id" placeholder="" oninput="validateChainId(this); updateSequenceDataSync('${sequenceId}', 'ligand');">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Input Type</label>
+                    <label for="${sequenceId}_ligandType" class="form-label">Input Type</label>
                     <select class="form-select" id="${sequenceId}_ligandType" onchange="toggleLigandInputs('${sequenceId}')">
                         <option value="glycan" selected>Glycan</option>
                         <option value="ccd">CCD Codes</option>
@@ -675,31 +675,31 @@ function createLigandSequenceHTML(sequenceId) {
                 <div class="col-md-6">
                     <div id="${sequenceId}_glycanInput">
                         <div class="d-flex align-items-center mb-1">
-                            <label class="form-label mb-0 me-2">GlycoCT Data*</label>
+                            <label for="${sequenceId}_glycoCT" class="form-label mb-0 me-2">GlycoCT Data*</label>
                             <button type="button" class="btn btn-outline-primary btn-sm"
                                     style="padding: 1px 4px; font-size: 10px;"
                                     onclick="openSugarDrawerPopup('${sequenceId}_glycoCT')"
-                                    title="Open SugarDrawer to draw glycan structure">
+                                    aria-label="Open SugarDrawer to draw glycan structure" title="Open SugarDrawer to draw glycan structure">
                                 <i class="fas fa-pen"></i>
                             </button>
                         </div>
                         <textarea class="form-control" id="${sequenceId}_glycoCT" rows="2" placeholder="Import GlycoCT from SugarDrawer or paste GlycoCT from database" oninput="updateSequenceDataSync('${sequenceId}', 'ligand')"></textarea>
                     </div>
                     <div id="${sequenceId}_ccdInput" style="display:none;">
-                        <label class="form-label">CCD Codes*</label>
+                        <label for="${sequenceId}_ccdCodes" class="form-label">CCD Codes*</label>
                         <input type="text" class="form-control" id="${sequenceId}_ccdCodes" placeholder="ATP,MG (comma-separated)" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()">
                     </div>
                     <div id="${sequenceId}_ionInput" style="display:none;">
-                        <label class="form-label">Ion CCD Code*</label>
+                        <label for="${sequenceId}_ionCode" class="form-label">Ion CCD Code*</label>
                         <input type="text" class="form-control" id="${sequenceId}_ionCode" placeholder="MG" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase(); updateSequenceDataSync('${sequenceId}', 'ligand');">
                     </div>
                     <div id="${sequenceId}_fileInput" style="display:none;">
-                        <label class="form-label">Mol-1 Ligand File Path*</label>
+                        <label for="${sequenceId}_filePath" class="form-label">Mol-1 Ligand File Path*</label>
                         <input type="text" class="form-control" id="${sequenceId}_filePath" placeholder="/path/to/ligand.sdf" oninput="updateSequenceDataSync('${sequenceId}', 'ligand');">
                         <small class="text-muted">PDB, SDF, MOL, or MOL2 file available to the Mol-1 runner</small>
                     </div>
                     <div id="${sequenceId}_smilesInput" style="display:none;">
-                        <label class="form-label">SMILES String*</label>
+                        <label for="${sequenceId}_smiles" class="form-label">SMILES String*</label>
                         <input type="text" class="form-control" id="${sequenceId}_smiles" placeholder="Enter SMILES notation">
                     </div>
                 </div>
@@ -708,7 +708,7 @@ function createLigandSequenceHTML(sequenceId) {
             <!-- Ligand count and description -->
             <div class="row mt-3">
                 <div class="col-md-3">
-                    <label class="form-label">Count</label>
+                    <label for="${sequenceId}_count" class="form-label">Count</label>
                     <input type="number" class="form-control" id="${sequenceId}_count" value="1" min="1" onchange="updateLigandMultimer('${sequenceId}')">
                 </div>
                 <div class="col-md-9">
@@ -775,6 +775,7 @@ function updateSequenceDataSync(sequenceId, type) {
 async function updateSequenceData(sequenceId, type) {
     const sequence = app.sequences.find(seq => seq.id === sequenceId);
     if (!sequence) return;
+    const update = sequence.updateGeneration = (sequence.updateGeneration || 0) + 1;
     
     // Always allow updating sequence data when user changes inputs
     
@@ -805,7 +806,10 @@ async function updateSequenceData(sequenceId, type) {
             break;
         case 'ligand':
             // Always rebuild ligand data from form to ensure GlycoCT input is processed
-            sequence.data = await buildLigandData(sequenceId, id);
+            const result = await buildLigandData(sequenceId, id);
+            if (sequence.updateGeneration !== update || !app.sequences.includes(sequence)) return;
+            sequence.data = result.data;
+            sequence.bondedAtomPairs = result.bonds;
             break;
     }
 
@@ -1010,16 +1014,16 @@ async function buildLigandData(sequenceId, id) {
         const ligandData = { ligand: {} };
 
         // Use array of chain IDs instead of duplicating entries
-        ligandData.ligand.id = sequenceObj.multimerChainIds;
+        ligandData.ligand.id = [...sequenceObj.multimerChainIds];
 
         // Process ligand type data
-        await addLigandTypeData(sequenceId, ligandData.ligand);
+        const bonds = await addLigandTypeData(sequenceId, ligandData.ligand);
 
         // Add description if provided (put at end for consistent JSON order)
         const description = document.getElementById(`${sequenceId}_description`)?.value?.trim();
         if (description) ligandData.ligand.description = description;
 
-        return ligandData;
+        return { data: ligandData, bonds };
     } else {
         // Single chain ligand
         const data = { ligand: {} };
@@ -1027,7 +1031,7 @@ async function buildLigandData(sequenceId, id) {
         if (id) data.ligand.id = id;
 
         // Process ligand type data
-        await addLigandTypeData(sequenceId, data.ligand);
+        const bonds = await addLigandTypeData(sequenceId, data.ligand);
 
         // Add description if provided (put at end for consistent JSON order)
         const description = document.getElementById(`${sequenceId}_description`)?.value?.trim();
@@ -1037,15 +1041,16 @@ async function buildLigandData(sequenceId, id) {
             window.app.addToDebugLog('SUCCESS', `Ligand data created with ${data.ligand.ccdCodes.length} CCD codes`);
         }
         
-        return data;
+        return { data, bonds };
     }
 }
 
 async function addLigandTypeData(sequenceId, ligandObj) {
+    const generatedBonds = [];
     // Check if ligand type element exists
     const ligandTypeElement = document.getElementById(`${sequenceId}_ligandType`);
     if (!ligandTypeElement) {
-        return;
+        return generatedBonds;
     }
     
     const ligandType = ligandTypeElement.value;
@@ -1088,7 +1093,7 @@ async function addLigandTypeData(sequenceId, ligandObj) {
                     if (!validation.valid) {
                         // Display validation errors inline
                         displayGlycoCTValidationErrors(`${sequenceId}_glycoCT`, validation);
-                        return; // Exit early without processing
+                        throw new Error('Invalid ligand GlycoCT');
                     }
                 }
 
@@ -1137,7 +1142,7 @@ async function addLigandTypeData(sequenceId, ligandObj) {
                                 if (!window.app.userCCDs) {
                                     window.app.userCCDs = {};
                                 }
-                                Object.assign(window.app.userCCDs, substituentResult.requiredUserCCDs);
+                                window.mergeAutomaticUserCCDs(window.app.userCCDs, substituentResult.requiredUserCCDs, 'automatic-substituent');
                             }
                         }
                     }
@@ -1154,60 +1159,20 @@ async function addLigandTypeData(sequenceId, ligandObj) {
                         }
                     }
 
-                    // Add bonded atom pairs if they exist (always enabled)
-                    if (additionalBonds && additionalBonds.length > 0) {
-                        // Remove existing glycan-generated bonds for these chain IDs to prevent duplicates
-                        for (const chainId of chainIds) {
-                            window.app.bondedAtomPairs = window.app.bondedAtomPairs.filter(bond => {
-                                // Keep manual bonds (objects with id property)
-                                if (bond.id !== undefined) {
-                                    return true;
-                                }
-                                // Remove glycan bonds that match this ligand's chain
-                                if (Array.isArray(bond) && bond[0] && bond[1]) {
-                                    return !(bond[0][0] === chainId && bond[1][0] === chainId);
-                                }
-                                return true;
-                            });
-                        }
-                        // For multimers, generate bondedAtomPairs for each chain ID
-                        for (const chainId of chainIds) {
-                            // Create bondedAtomPairs with the specific chain ID for this ligand instance
-                            const chainSpecificBonds = additionalBonds.map(bond => {
-                                // Replace the chain ID in each bond pair
-                                return [
-                                    [chainId, bond[0][1], bond[0][2]], // [chainId, residueId, atomName]
-                                    [chainId, bond[1][1], bond[1][2]]  // [chainId, residueId, atomName]
-                                ];
-                            });
-
-                            window.app.bondedAtomPairs.push(...chainSpecificBonds);
-                        }
-
-                    } else {
+                    // Generated bonds belong to this ligand, never the shared manual bond list.
+                    for (const chainId of chainIds) {
+                        generatedBonds.push(...additionalBonds.map(bond => [
+                            [chainId, bond[0][1], bond[0][2]],
+                            [chainId, bond[1][1], bond[1][2]]
+                        ]));
                     }
                 } catch (error) {
-                    // Fallback: just leave the field empty or show error
-                }
-            } else {
-                // GlycoCT is empty - remove any glycan-generated bonds for this ligand's chain IDs
-                const chainIds = Array.isArray(ligandObj.id) ? ligandObj.id : [ligandObj.id || 'L'];
-                for (const chainId of chainIds) {
-                    window.app.bondedAtomPairs = window.app.bondedAtomPairs.filter(bond => {
-                        // Keep manual bonds (objects with id property)
-                        if (bond.id !== undefined) {
-                            return true;
-                        }
-                        // Remove glycan bonds that match this ligand's chain
-                        if (Array.isArray(bond) && bond[0] && bond[1]) {
-                            return !(bond[0][0] === chainId && bond[1][0] === chainId);
-                        }
-                        return true;
-                    });
+                    throw new Error(`Cannot convert ligand GlycoCT: ${error.message}`);
                 }
             }
             break;
     }
+    return generatedBonds;
 }
 
 // Placeholder functions for modifications
@@ -1258,72 +1223,6 @@ function collectDNAModifications(sequenceId) {
     return modifications;
 }
 
-/**
- * Clean up bonded atom pairs by removing bonds for chain IDs that don't exist in the JSON output
- */
-function cleanupOrphanedBondedAtomPairs() {
-    if (!window.app || !window.app.bondedAtomPairs || window.app.bondedAtomPairs.length === 0) {
-        return;
-    }
-
-    // Get all valid chain IDs from the current JSON output
-    const validChainIds = new Set();
-
-    if (app.sequences) {
-        app.sequences.forEach(seq => {
-            if (seq.data) {
-                // Check protein sequences
-                if (seq.data.protein && seq.data.protein.id) {
-                    if (Array.isArray(seq.data.protein.id)) {
-                        seq.data.protein.id.forEach(id => validChainIds.add(id));
-                    } else {
-                        validChainIds.add(seq.data.protein.id);
-                    }
-                }
-                // Check RNA sequences
-                if (seq.data.rna && seq.data.rna.id) {
-                    if (Array.isArray(seq.data.rna.id)) {
-                        seq.data.rna.id.forEach(id => validChainIds.add(id));
-                    } else {
-                        validChainIds.add(seq.data.rna.id);
-                    }
-                }
-                // Check DNA sequences
-                if (seq.data.dna && seq.data.dna.id) {
-                    if (Array.isArray(seq.data.dna.id)) {
-                        seq.data.dna.id.forEach(id => validChainIds.add(id));
-                    } else {
-                        validChainIds.add(seq.data.dna.id);
-                    }
-                }
-                // Check ligand sequences
-                if (seq.data.ligand && seq.data.ligand.id) {
-                    if (Array.isArray(seq.data.ligand.id)) {
-                        seq.data.ligand.id.forEach(id => validChainIds.add(id));
-                    } else {
-                        validChainIds.add(seq.data.ligand.id);
-                    }
-                }
-            }
-        });
-    }
-
-    // Filter out bonds that reference non-existent chain IDs
-    window.app.bondedAtomPairs = window.app.bondedAtomPairs.filter(bond => {
-        // Keep manual bonds (objects with id property)
-        if (bond.id !== undefined) {
-            return true;
-        }
-        // For glycan bonds (arrays), check if both chain IDs exist
-        if (Array.isArray(bond) && bond[0] && bond[1]) {
-            const chain1 = bond[0][0];
-            const chain2 = bond[1][0];
-            return validChainIds.has(chain1) && validChainIds.has(chain2);
-        }
-        return true;
-    });
-}
-
 function removeSequence(sequenceId) {
     // Remove from DOM
     const element = document.getElementById(`sequence_${sequenceId}`);
@@ -1333,9 +1232,6 @@ function removeSequence(sequenceId) {
 
     // Remove from sequences array
     app.sequences = app.sequences.filter(seq => seq.id !== sequenceId);
-
-    // Clean up orphaned bonded atom pairs after removing sequence
-    cleanupOrphanedBondedAtomPairs();
 
     // Show placeholder if no sequences left
     const container = document.getElementById('sequencesContainer');
@@ -1365,9 +1261,6 @@ function updateLigandMultimer(sequenceId) {
     const chainListSpan = document.getElementById(`${sequenceId}_chainList`);
 
     if (!countInput || !chainIdInput || !multimerDiv || !chainListSpan) return;
-
-    // Clean up old bondedAtomPairs before updating
-    cleanupSequenceBondedAtomPairs(sequenceId);
 
     const count = parseInt(countInput.value) || 1;
     const baseId = chainIdInput.value || 'L';
@@ -1798,6 +1691,17 @@ function updatePTMMarking(sequenceId) {
     }
 }
 
+function escapeSequenceCharacter(char) {
+    switch (char) {
+        case '&': return '&amp;';
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '"': return '&quot;';
+        case "'": return '&#39;';
+        default: return char;
+    }
+}
+
 function updateSequenceVisualMarking(sequenceId, sequence, modifiedPositions) {
     // Update the main visualization div to include PTM marking
     const vizDiv = document.getElementById(`${sequenceId}_sequenceViz`);
@@ -1814,7 +1718,7 @@ function updateSequenceVisualMarking(sequenceId, sequence, modifiedPositions) {
         // Build sequence line
         for (let i = lineStart; i < lineEnd; i++) {
             const position = i + 1;
-            const char = sequence[i];
+            const char = escapeSequenceCharacter(sequence[i]);
             const isModified = modifiedPositions.includes(position);
 
             // Sequence line with PTM highlighting
@@ -2311,14 +2215,15 @@ async function getResidueCountForChain(chainId) {
     return 0;
 }
 
-// Helper function to create chain dropdown options
-function createChainDropdownOptions() {
-    const chainIds = getAllChainIds();
-    let options = '<option value="">Select chain...</option>';
-    chainIds.forEach(chainId => {
-        options += `<option value="${chainId}">${chainId}</option>`;
+// Chain IDs can come from imported input; insert them only as DOM values.
+function populateChainDropdownOptions(list, chainIds) {
+    const options = chainIds.map(chainId => {
+        const option = document.createElement('option');
+        option.value = chainId;
+        option.textContent = chainId;
+        return option;
     });
-    return options;
+    list.replaceChildren(...options);
 }
 
 
@@ -2346,7 +2251,7 @@ async function updateResidueDropdown(bondId, chainNumber, selectedChainId, clear
 async function refreshBondedAtomPairDropdowns() {
     if (!window.app.bondedAtomPairs) return;
 
-    const chainOptions = createChainDropdownOptions();
+    const chainIds = getAllChainIds();
 
     for (const bond of window.app.bondedAtomPairs) {
         // Update chain datalists
@@ -2356,7 +2261,7 @@ async function refreshBondedAtomPairDropdowns() {
         const chain2Input = document.getElementById(`${bond.id}_chain2`);
 
         if (chain1Datalist) {
-            chain1Datalist.innerHTML = chainOptions;
+            populateChainDropdownOptions(chain1Datalist, chainIds);
             // Update residue dropdown if chain is entered (don't clear input)
             if (chain1Input && chain1Input.value) {
                 await updateResidueDropdown(bond.id, '1', chain1Input.value, false);
@@ -2364,7 +2269,7 @@ async function refreshBondedAtomPairDropdowns() {
         }
 
         if (chain2Datalist) {
-            chain2Datalist.innerHTML = chainOptions;
+            populateChainDropdownOptions(chain2Datalist, chainIds);
             // Update residue dropdown if chain is entered (don't clear input)
             if (chain2Input && chain2Input.value) {
                 await updateResidueDropdown(bond.id, '2', chain2Input.value, false);
@@ -2383,8 +2288,6 @@ function addBondedAtomPair() {
         container.innerHTML = '';
     }
 
-    const chainOptions = createChainDropdownOptions();
-
     const bondHTML = `
         <div class="card mb-2" id="bond_${bondId}">
             <div class="card-body">
@@ -2393,7 +2296,6 @@ function addBondedAtomPair() {
                         <label class="form-label">Chain 1</label>
                         <input type="text" class="form-control" id="${bondId}_chain1" placeholder="Enter chain ID" list="${bondId}_chain1_list" oninput="(async () => await updateResidueDropdown('${bondId}', '1', this.value))()">
                         <datalist id="${bondId}_chain1_list">
-                            ${chainOptions}
                         </datalist>
                     </div>
                     <div class="col-md-2">
@@ -2410,7 +2312,6 @@ function addBondedAtomPair() {
                         <label class="form-label">Chain 2</label>
                         <input type="text" class="form-control" id="${bondId}_chain2" placeholder="Enter chain ID" list="${bondId}_chain2_list" oninput="(async () => await updateResidueDropdown('${bondId}', '2', this.value))()">
                         <datalist id="${bondId}_chain2_list">
-                            ${chainOptions}
                         </datalist>
                     </div>
                     <div class="col-md-2">
@@ -2434,6 +2335,9 @@ function addBondedAtomPair() {
     `;
     
     container.insertAdjacentHTML('beforeend', bondHTML);
+    const chainIds = getAllChainIds();
+    populateChainDropdownOptions(document.getElementById(`${bondId}_chain1_list`), chainIds);
+    populateChainDropdownOptions(document.getElementById(`${bondId}_chain2_list`), chainIds);
     
     // Add to bonded atom pairs array
     window.app.bondedAtomPairs.push({
@@ -2456,6 +2360,7 @@ function addBondedAtomPair() {
             app.debounceGenerate();
         });
     });
+    app.debounceGenerate();
 }
 
 function updateBondedAtomPair(bondId) {
@@ -2495,6 +2400,8 @@ function removeBondedAtomPair(bondId) {
     if (window.app.bondedAtomPairs.length === 0) {
         container.innerHTML = '<p class="text-muted">No bondedAtomPairs defined</p>';
     }
+
+    updateBondedAtomPairsVisibility();
     
     // Regenerate JSON
     app.debounceGenerate();
@@ -2554,51 +2461,6 @@ function generateLigandChainIds(baseId, count) {
     return chains;
 }
 
-// Clean up bondedAtomPairs related to a specific sequence when count changes
-function cleanupSequenceBondedAtomPairs(sequenceId) {
-    if (!window.app || !window.app.bondedAtomPairs) return;
-
-    // Find the sequence object to get its current and old chain IDs
-    const sequenceObj = app.sequences.find(seq => seq.id === sequenceId);
-    if (!sequenceObj) return;
-
-    // Get all possible chain IDs that this sequence might have used
-    const currentChainIds = sequenceObj.multimerChainIds || [];
-    const baseId = document.getElementById(`${sequenceId}_id`)?.value || 'L';
-
-    // Create a set of all possible chain IDs this sequence could have generated
-    const possibleChainIds = new Set();
-
-    // Add current chain IDs
-    currentChainIds.forEach(id => possibleChainIds.add(id));
-
-    // Add potential old chain IDs (up to reasonable count)
-    for (let i = 0; i < 20; i++) {
-        const suffix = generateAlphabeticSuffix(i);
-        possibleChainIds.add(`${baseId}${suffix}`);
-        possibleChainIds.add(baseId); // also include base ID without suffix
-    }
-
-    // Remove bondedAtomPairs that reference any of these chain IDs
-    const initialCount = window.app.bondedAtomPairs.length;
-    window.app.bondedAtomPairs = window.app.bondedAtomPairs.filter(bond => {
-        if (Array.isArray(bond) && bond.length === 2) {
-            // Direct array format: [["EntityID", ResidueID, "AtomName"], ["EntityID", ResidueID, "AtomName"]]
-            const chain1 = bond[0]?.[0];
-            const chain2 = bond[1]?.[0];
-
-            // Keep if neither chain ID matches this sequence's possible IDs
-            return !possibleChainIds.has(chain1) && !possibleChainIds.has(chain2);
-        }
-        // Keep other formats as-is
-        return true;
-    });
-
-    const removedCount = initialCount - window.app.bondedAtomPairs.length;
-    if (removedCount > 0) {
-    }
-}
-
 // Update multimer chains display and data
 function updateMultimerChains(sequenceId) {
     const countInput = document.getElementById(`${sequenceId}_count`);
@@ -2607,9 +2469,6 @@ function updateMultimerChains(sequenceId) {
     const chainListSpan = document.getElementById(`${sequenceId}_chainList`);
 
     if (!countInput || !chainIdInput || !multimerDiv || !chainListSpan) return;
-
-    // Clean up old bondedAtomPairs before updating
-    cleanupSequenceBondedAtomPairs(sequenceId);
 
     const count = parseInt(countInput.value) || 1;
     const baseId = chainIdInput.value || 'A';
@@ -2893,7 +2752,7 @@ function addSequonSite(sequenceId, sequonData, index) {
                             <button type="button" class="btn btn-outline-primary btn-sm"
                                     style="padding: 1px 4px; font-size: 10px;"
                                     onclick="openSugarDrawerPopup('${siteId}_glycan')"
-                                    title="Open SugarDrawer to draw glycan structure">
+                                    aria-label="Open SugarDrawer to draw glycan structure" title="Open SugarDrawer to draw glycan structure">
                                 <i class="fas fa-pen"></i>
                             </button>
                         </div>
@@ -3088,7 +2947,7 @@ async function processSequonGlycoCTInput(siteId, sequenceId) {
                         if (!window.app.userCCDs) {
                             window.app.userCCDs = {};
                         }
-                        Object.assign(window.app.userCCDs, substituentResult.requiredUserCCDs);
+                        window.mergeAutomaticUserCCDs(window.app.userCCDs, substituentResult.requiredUserCCDs, 'automatic-substituent');
                     }
                 }
             }
@@ -3346,7 +3205,7 @@ function updateSequenceVisualization(sequenceId) {
         // Build sequence line
         for (let i = lineStart; i < lineEnd; i++) {
             const position = i + 1;
-            const char = sequence[i];
+            const char = escapeSequenceCharacter(sequence[i]);
 
             sequenceLine += char;
 
@@ -3424,16 +3283,15 @@ function updateSequenceVisualization(sequenceId) {
 }
 
 /**
- * Update the visibility of the Bonded Atom Pairs section based on whether ligand sequences exist
+ * Keep bonds editable for any entity type, including when a referenced entity is removed.
  */
 function updateBondedAtomPairsVisibility() {
     const dynamicSection = document.getElementById("dynamicBondedAtomPairsSection");
     if (!dynamicSection) return;
     
-    // Check if there are any ligand sequences
-    const hasLigands = app && app.sequences && app.sequences.some(seq => seq.type === "ligand");
+    const showBonds = app && (app.sequences.length > 0 || app.bondedAtomPairs.some(bond => bond.id !== undefined));
     
-    if (hasLigands && !document.getElementById("bondedAtomPairsContainer")) {
+    if (showBonds && !document.getElementById("bondedAtomPairsContainer")) {
         // Show the bonded atom pairs section
         dynamicSection.innerHTML = `
             <div class="mt-4">
@@ -3470,13 +3328,9 @@ function updateBondedAtomPairsVisibility() {
                 </div>
             </div>
         `;
-    } else if (!hasLigands && document.getElementById("bondedAtomPairsContainer")) {
+    } else if (!showBonds && document.getElementById("bondedAtomPairsContainer")) {
         // Hide the bonded atom pairs section
         dynamicSection.innerHTML = "";
-        // Clear any existing bonds
-        if (app && window.app.bondedAtomPairs) {
-            window.app.bondedAtomPairs = [];
-        }
     }
 }
 
@@ -3541,7 +3395,7 @@ function addGlycosylationSite(sequenceId) {
                                     <button type="button" class="btn btn-outline-primary btn-sm"
                                             style="padding: 1px 4px; font-size: 10px;"
                                             onclick="openSugarDrawerPopup('${siteId}_glycan')"
-                                            title="Open SugarDrawer to draw glycan structure">
+                                            aria-label="Open SugarDrawer to draw glycan structure" title="Open SugarDrawer to draw glycan structure">
                                         <i class="fas fa-pen"></i>
                                     </button>
                                 </div>
@@ -3798,7 +3652,7 @@ async function processGlycoCTInput(siteId, sequenceId) {
                         if (!window.app.userCCDs) {
                             window.app.userCCDs = {};
                         }
-                        Object.assign(window.app.userCCDs, substituentResult.requiredUserCCDs);
+                        window.mergeAutomaticUserCCDs(window.app.userCCDs, substituentResult.requiredUserCCDs, 'automatic-substituent');
                     }
                 }
             }
@@ -3884,7 +3738,7 @@ function updateSequenceVisualWithGlycosylation(sequenceId, sequence, glycosylate
         // Build sequence line
         for (let i = lineStart; i < lineEnd; i++) {
             const position = i + 1;
-            const char = sequence[i];
+            const char = escapeSequenceCharacter(sequence[i]);
             const isModified = ptmPositions.includes(position);
             const isGlycosylated = glycosylatedPositions.includes(position);
             const isSequon = sequonPositions.includes(position);
@@ -4018,7 +3872,7 @@ function updateSequenceVisualWithSequons(sequenceId, sequence, glycosylatedPosit
         // Build sequence line
         for (let i = lineStart; i < lineEnd; i++) {
             const position = i + 1;
-            const char = sequence[i];
+            const char = escapeSequenceCharacter(sequence[i]);
             const isModified = ptmPositions.includes(position);
             const isGlycosylated = glycosylatedPositions.includes(position);
             const isSequon = sequonPositions.includes(position);
@@ -4364,7 +4218,7 @@ async function processGlycosylationSites(sequenceId, proteinChainId, multimerCha
                         if (!window.app.userCCDs) {
                             window.app.userCCDs = {};
                         }
-                        Object.assign(window.app.userCCDs, substituentResult.requiredUserCCDs);
+                        window.mergeAutomaticUserCCDs(window.app.userCCDs, substituentResult.requiredUserCCDs, 'automatic-substituent');
                     }
                 }
             }
@@ -4404,11 +4258,13 @@ async function processGlycosylationSites(sequenceId, proteinChainId, multimerCha
                     if (!window.app.glycanUserCCDs) {
                         window.app.glycanUserCCDs = {};
                     }
-                    Object.assign(window.app.glycanUserCCDs, converted.userCCDs);
+                    window.mergeAutomaticUserCCDs(window.app.glycanUserCCDs, converted.userCCDs, 'automatic-glycan');
                 }
             } else {
+                throw new Error(`No residues could be converted for glycan at position ${site.position}`);
             }
         } catch (error) {
+            throw new Error(`Glycan at position ${site.position}: ${error.message}`);
         }
     }
 
@@ -4455,6 +4311,8 @@ async function applyLigandCCDReplacements(ccdCodes) {
  */
 async function registerLigandUserCCD(newCcdCode, originalCcdCode) {
     try {
+        const existing = window.app?.userCCDs?.[newCcdCode];
+        if (existing && !String(existing.source || '').startsWith('automatic')) return;
         // Check if we already have this userCCD registered
         if (window.app && window.app.glycanUserCCDs && window.app.glycanUserCCDs[newCcdCode]) {
             return;
@@ -4645,7 +4503,13 @@ function openSugarDrawerPopup(textareaId) {
     currentTargetTextareaId = textareaId;
 
     // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('sugarDrawerPopupModal'));
+    const modalElement = document.getElementById('sugarDrawerPopupModal');
+    const opener = document.activeElement;
+    modalElement.addEventListener('hidden.bs.modal', () => {
+        currentTargetTextareaId = null;
+        if (opener?.isConnected) opener.focus({ preventScroll: true });
+    }, { once: true });
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
     modal.show();
 
     // Initialize SugarDrawer in the popup container
@@ -4673,6 +4537,7 @@ function initializePopupSugarDrawer() {
             <div class="sugardrawer-popup-integration">
                 <iframe
                     id="sugarDrawerPopupFrame"
+                    title="SugarDrawer glycan editor"
                     src="sugardrawer/dist/index.html?popup=true"
                     width="100%"
                     height="100%"
@@ -4728,16 +4593,7 @@ function setupPopupPostMessageCommunication() {
 
     // Create new handler for popup messages
     window.popupMessageHandler = (event) => {
-
-        // Security check - ensure message is from expected sources
-        if (event.origin === null ||
-            event.origin === 'null' ||
-            event.origin === 'https://pages.glycosmos.org' ||
-            (event.origin && event.origin.startsWith('http://127.0.0.1')) ||
-            (event.origin && event.origin.startsWith('http://localhost')) ||
-            (event.origin && event.origin.includes('ngrok-free.app'))) {
-
-            if (event.data && typeof event.data === 'object') {
+        if (isTrustedSugarDrawerMessage(event, 'sugarDrawerPopupFrame')) {
                 switch (event.data.type) {
                     case 'SUGARDRAWER_READY':
                         break;
@@ -4755,7 +4611,10 @@ function setupPopupPostMessageCommunication() {
                         }
                         break;
                     case 'SUGARDRAWER_ONE_CLICK_EXPORT':
-                        handleOneClickExport(event.data);
+                        handleOneClickExport(event.data, event.source);
+                        break;
+                    case 'SUGARDRAWER_ESCAPE':
+                        closePopupModal();
                         break;
                     case 'CLOSE_POPUP':
                         if (window.lastValidationFailed) {
@@ -4765,7 +4624,6 @@ function setupPopupPostMessageCommunication() {
                         }
                         break;
                 }
-            }
         }
     };
 
@@ -4852,18 +4710,18 @@ function exportGlycoCTFromPopup() {
             iframe.contentWindow.postMessage({
                 action: 'export',
                 format: 'glycoct'
-            }, '*');
+            }, location.origin);
 
             iframe.contentWindow.postMessage({
                 type: 'TRIGGER_EXPORT',
                 format: 'glycoct'
-            }, '*');
+            }, location.origin);
 
             // Method 2: Try to simulate copy button click in SugarDrawer
             setTimeout(() => {
                 iframe.contentWindow.postMessage({
                     action: 'copyGlycoCT'
-                }, '*');
+                }, location.origin);
             }, 100);
 
         } catch (error) {
@@ -5009,7 +4867,7 @@ function exportGlycoCTFromPopup() {
 /**
  * Handle one-click export from SugarDrawer popup
  */
-async function handleOneClickExport(data) {
+async function handleOneClickExport(data, source) {
 
     if (!data.glycoct) {
         if (window.app && window.app.showError) {
@@ -5025,7 +4883,8 @@ async function handleOneClickExport(data) {
         return;
     }
 
-    const targetTextarea = document.getElementById(currentTargetTextareaId);
+    const targetId = currentTargetTextareaId;
+    const targetTextarea = document.getElementById(targetId);
 
     if (!targetTextarea) {
         if (window.app && window.app.showError) {
@@ -5073,6 +4932,9 @@ async function handleOneClickExport(data) {
         }
     }
 
+    if (currentTargetTextareaId !== targetId || document.getElementById(targetId) !== targetTextarea
+        || (source && document.getElementById('sugarDrawerPopupFrame')?.contentWindow !== source)) return;
+
     // Simple direct approach - just set the value and close modal
     targetTextarea.value = glycoCT;
 
@@ -5088,7 +4950,7 @@ async function handleOneClickExport(data) {
     // Send message to SugarDrawer to clear canvas after successful export
     const sugarDrawerFrame = document.getElementById('sugarDrawerPopupFrame');
     if (sugarDrawerFrame && sugarDrawerFrame.contentWindow) {
-        sugarDrawerFrame.contentWindow.postMessage({ type: 'SUGARDRAWER_CLEAR_CANVAS' }, '*');
+        sugarDrawerFrame.contentWindow.postMessage({ type: 'SUGARDRAWER_CLEAR_CANVAS' }, location.origin);
     }
 
     // Close modal directly like the working case

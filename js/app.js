@@ -17,7 +17,7 @@ class AlphaFold3Generator {
         this.loadSugarDrawer();
         
         // Generate initial JSON
-        setTimeout(() => {
+        this.initialGenerateTimeout = setTimeout(() => {
             this.generateJSON();
         }, 100);
     }
@@ -41,6 +41,15 @@ class AlphaFold3Generator {
 
     debounceGenerate() {
         if (this.isRestoringSharedInput) return;
+        // Invalidate both in-flight work and the previous output immediately on edit.
+        this.generation = (this.generation || 0) + 1;
+        this.lastValidation = null;
+        if (typeof CustomEvent === 'function') document.dispatchEvent(new CustomEvent('bionuta-change', { detail: { revision: this.generation } }));
+        const status = document.getElementById('validationStatus');
+        if (status) {
+            status.textContent = 'Updating input preview…';
+            status.className = 'text-muted small';
+        }
         clearTimeout(this.generateTimeout);
         this.generateTimeout = setTimeout(() => {
             this.generateJSON();
@@ -113,18 +122,25 @@ class AlphaFold3Generator {
         }
     }
 
-    async buildSupersetDocument(target = this.getOutputTarget()) {
+    async buildSupersetDocument(target = this.getOutputTarget(), generation) {
         // Keep the mature DOM collector as a migration bridge; adapters consume only the neutral document.
-        const collectedJob = await this.buildAlphaFold3JSON();
+        const collectedJob = await this.buildAlphaFold3JSON(generation);
         const core = await window.JAAGCoreReady;
         return { collectedJob, inputDocument: core.fromAlphaFold3(collectedJob, { target }), core };
     }
 
     async generateJSON() {
         if (this.isRestoringSharedInput) return;
+        // An explicit validation or materialization supersedes the startup
+        // preview; otherwise that timer can invalidate the in-flight result.
+        clearTimeout(this.initialGenerateTimeout);
+        this.initialGenerateTimeout = null;
+        const generation = this.generation = (this.generation || 0) + 1;
+        this.lastValidation = null;
         try {
             const outputTarget = this.getOutputTarget();
-            const { collectedJob, inputDocument, core } = await this.buildSupersetDocument(outputTarget);
+            const { collectedJob, inputDocument, core } = await this.buildSupersetDocument(outputTarget, generation);
+            if (generation !== this.generation || this.isRestoringSharedInput) return;
             const conversion = core.serialize(inputDocument, outputTarget);
             const targetConfig = core.TARGETS[outputTarget];
             const formValidation = this.validateJSON(collectedJob);
@@ -155,10 +171,15 @@ class AlphaFold3Generator {
             }
 
         } catch (error) {
+            if (generation !== this.generation || this.isRestoringSharedInput) return;
             this.lastValidation = { valid: false, errors: [error.message], warnings: [] };
+            const status = document.getElementById('validationStatus');
+            if (status) {
+                status.textContent = `Error: ${error.message}`;
+                status.className = 'text-danger small';
+            }
             const outputElement = document.getElementById('jsonOutput');
             if (outputElement) outputElement.textContent = `Error: ${error.message}`;
-            this.showError('Input Generation Error: ' + error.message);
         }
     }
 
@@ -211,14 +232,18 @@ class AlphaFold3Generator {
                 color = '#17a2b8';
         }
         
-        logEntry.innerHTML = `
-            <span style="color: ${color}; font-weight: bold;">[${timestamp}] ${icon} ${level}:</span>
-            <span style="margin-left: 8px;">${message}</span>
-        `;
+        const heading = document.createElement('span');
+        heading.style.color = color;
+        heading.style.fontWeight = 'bold';
+        heading.textContent = `[${timestamp}] ${icon} ${level}:`;
+        const detail = document.createElement('span');
+        detail.style.marginLeft = '8px';
+        detail.textContent = message;
+        logEntry.append(heading, detail);
         
         // Clear placeholder text if this is the first real entry
         if (debugLog.children.length === 1 && debugLog.children[0].classList.contains('text-muted')) {
-            debugLog.innerHTML = '';
+            debugLog.replaceChildren();
         }
         
         debugLog.appendChild(logEntry);
@@ -245,10 +270,11 @@ class AlphaFold3Generator {
                 <div class="me-2">
                     ${this.getToastIcon(type)}
                 </div>
-                <div class="flex-grow-1">${message}</div>
+                <div class="flex-grow-1"></div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
+        toast.querySelector('.flex-grow-1').textContent = message;
 
         // Add to container
         toastContainer.appendChild(toast);
@@ -319,7 +345,7 @@ function updateOutputTarget() {
  * @param {string} jobName - The job name to append to title
  */
 function updatePageTitle(jobName) {
-    const baseTitle = 'JAAG';
+    const baseTitle = 'BioNuTA';
     if (jobName && jobName.trim() !== '') {
         document.title = `${baseTitle} - ${jobName}`;
     } else {
@@ -438,43 +464,6 @@ function validateMultipleSeedsInput(input) {
 }
 
 function cleanupMultipleSeedsInput(input) {
-    let value = input.value.trim();
-
-    if (!value) {
-        return;
-    }
-
-    // Split by comma and validate each seed
-    const seeds = value.split(',');
-    const validSeeds = [];
-    const min = 1;
-    const max = 4294967295;
-
-    for (let seed of seeds) {
-        seed = seed.trim();
-
-        // Skip empty values
-        if (seed === '') continue;
-
-        // Remove non-numeric characters
-        seed = seed.replace(/[^0-9]/g, '');
-
-        const numValue = parseInt(seed);
-
-        if (numValue && numValue >= min && numValue <= max) {
-            validSeeds.push(numValue);
-        }
-    }
-
-    // Clean up and format the input with proper spacing
-    if (validSeeds.length > 0) {
-        input.value = validSeeds.join(', ');
-    } else if (value && validSeeds.length === 0) {
-        // If user entered something but all invalid, clear the field
-        input.value = '';
-    }
-
-    // Trigger JSON update after cleanup
     if (window.app) {
         window.app.debounceGenerate();
     }
@@ -497,20 +486,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Make app globally accessible
     window.app = app;
     app.updateOutputTargetUI();
-
-    // Generate and set a random seed as default
-    const modelSeedsInput = document.getElementById('modelSeedsMultiple');
-    if (modelSeedsInput && !modelSeedsInput.value) {
-        const min = 1;
-        const max = 4294967295; // Maximum 32-bit unsigned integer
-        const randomSeed = Math.floor(Math.random() * (max - min + 1)) + min;
-        modelSeedsInput.value = randomSeed;
-
-        // Trigger JSON update to include the default seed
-        if (window.app) {
-            window.app.debounceGenerate();
-        }
-    }
 
     // Add event listener for Advanced Settings collapse toggle
     const advancedFunctionsButton = document.querySelector('[data-bs-target="#advancedFunctionsCollapse"]');

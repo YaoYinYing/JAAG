@@ -3,19 +3,59 @@
 /**
  * Enhanced JSON generation with proper sequence data integration
  */
-AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
+AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function(generation) {
     const jobName = document.getElementById('jobName').value || 'Untitled_Job';
     const version = parseInt(document.getElementById('version').value);
     // Get model seeds from multiple seeds input
-    const modelSeedsInput = document.getElementById('modelSeedsMultiple').value || '1';
+    const modelSeedsInput = document.getElementById('modelSeedsMultiple').value;
 
     // Parse model seeds
-    const modelSeeds = modelSeedsInput.split(',')
-        .map(s => parseInt(s.trim()))
-        .filter(n => !isNaN(n));
-    
-    if (modelSeeds.length === 0) {
-        throw new Error('At least one model seed is required');
+    const seedParts = modelSeedsInput.split(',').map(seed => seed.trim());
+    if (seedParts.some(seed => !/^\d+$/.test(seed) || Number(seed) < 1 || Number(seed) > 4294967295)) {
+        throw new Error('Enter comma-separated model seeds from 1 to 4294967295');
+    }
+    const modelSeeds = seedParts.map(Number);
+
+    // Manual sites are intentional; detected sequons become attachments once a glycan is supplied.
+    for (const seq of this.sequences.filter(item => item.type === 'protein')) {
+        for (const [suffix, prefix, optional] of [
+            ['glycosylationSites', 'glyco_', false], ['sequonSites', 'sequon_', true]
+        ]) {
+            const cards = document.getElementById(`${seq.id}_${suffix}`)?.querySelectorAll(`.card[id^="${prefix}"]`) || [];
+            for (const card of cards) {
+                const value = field => document.getElementById(`${card.id}_${field}`)?.value?.trim() || '';
+                if (optional && !value('glycan')) continue;
+                const position = Number(value('position'));
+                const residue = optional ? 'N' : value('residueType');
+                const atom = optional ? 'ND2' : value(residue === 'custom' ? 'customAtom' : 'atom');
+                if (!Number.isInteger(position) || position < 1 || !residue || !atom || !value('chainId') || !value('glycan')) {
+                    throw new Error(`Complete or remove the glycosylation site on ${seq.id}`);
+                }
+            }
+        }
+    }
+
+    for (const seq of this.sequences.filter(item => ['protein', 'rna', 'dna'].includes(item.type))) {
+        const modifications = document.getElementById(`${seq.id}_${seq.type === 'protein' ? 'ptms' : 'modifications'}`);
+        const prefix = seq.type === 'protein' ? 'ptm_' : `${seq.type}mod_`;
+        for (const card of modifications?.querySelectorAll(`.card[id^="${prefix}"]`) || []) {
+            const position = Number(document.getElementById(`${card.id}_position`)?.value);
+            const type = document.getElementById(`${card.id}_type`)?.value?.trim();
+            if (!Number.isInteger(position) || position < 1 || !type) {
+                throw new Error(`Complete or remove the modification on ${seq.id}`);
+            }
+        }
+        if (seq.type !== 'protein') continue;
+        const templates = document.getElementById(`${seq.id}_templates`);
+        for (const card of templates?.querySelectorAll('.card[id^="template_"]') || []) {
+            const value = field => document.getElementById(`${card.id}_${field}`)?.value?.trim() || '';
+            const path = document.getElementById(`${card.id}_sourceTypePath`)?.checked;
+            const source = value(path ? 'mmcifPath' : 'mmcif');
+            const indices = /^\d+(?:\s*,\s*\d+)*$/;
+            if (!source || !indices.test(value('queryIndices')) || !indices.test(value('templateIndices'))) {
+                throw new Error(`Complete or remove the template on ${seq.id}; indices must be comma-separated integers`);
+            }
+        }
     }
 
     // Update all sequence data with current DOM state before processing
@@ -63,6 +103,7 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
                                         glycosylationResults.push(glycoResult);
                                     }
                                 } catch (error) {
+                                    throw new Error(`Glycosylation on chain ${chainId}: ${error.message}`);
                                 }
                             }
                         }
@@ -85,6 +126,7 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
                                 glycosylationResults.push(glycoResult);
                             }
                         } catch (error) {
+                            throw new Error(`Glycosylation on chain ${seqData.protein.id}: ${error.message}`);
                         }
                     }
                 }
@@ -102,6 +144,12 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
     // Consolidate identical glycans that come from multimer counts (same site, same structure, different chains)
     const consolidatedGlycanLigands = this.consolidateMultimerGlycans(allGlycanLigands);
     sequences.push(...consolidatedGlycanLigands);
+
+    // Only a complete, current collection can establish which derived CCDs
+    // remain referenced. Never prune from a stale asynchronous calculation.
+    if (generation !== undefined && generation !== this.generation) throw new Error('Editor changed during collection');
+    const usedCCDs = new Set(sequences.flatMap(entity => entity.ligand?.ccdCodes || []));
+    window.cleanupUnusedUserCCDs?.(usedCCDs);
     
 
     const jsonData = {
@@ -160,13 +208,9 @@ AlphaFold3Generator.prototype.buildAlphaFold3JSON = async function() {
     }
 
     // Add UserCCD data if available
-    const allUserCCDs = { ...this.userCCDs };
+    const allUserCCDs = { ...this.glycanUserCCDs, ...this.userCCDs };
     
     // Add userCCD data from glycosylation sites
-    if (window.app.glycanUserCCDs && Object.keys(window.app.glycanUserCCDs).length > 0) {
-        Object.assign(allUserCCDs, window.app.glycanUserCCDs);
-    }
-    
     if (allUserCCDs && Object.keys(allUserCCDs).length > 0) {
         
         // Check if we have inline userCCD data or file paths
@@ -374,6 +418,11 @@ AlphaFold3Generator.prototype.validateJSON = function(jsonData) {
         const bondValidation = this.validateBondedAtomPairs(jsonData.bondedAtomPairs);
         errors.push(...bondValidation.errors);
         warnings.push(...bondValidation.warnings);
+    }
+    if (this.bondedAtomPairs.some(bond => bond.id !== undefined
+        && !(Array.isArray(bond.data) && bond.data.length === 2)
+        && !(bond.data?.atom1 && bond.data?.atom2))) {
+        errors.push('Complete or remove each covalent bond before generating input');
     }
 
     // Update status display

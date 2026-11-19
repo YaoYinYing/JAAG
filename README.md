@@ -1,6 +1,6 @@
-# JAAG: input-file assembly for AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2
+# BioNuTA — Biomolecular Input Assembler
 
-JAAG is a comprehensive web-based tool for generating input files for open structure prediction tools including AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2, with advanced glycan structure support and integrated SugarDrawer functionality.
+BioNuTA (formerly JAAG) is a web-based workbench for generating input files for open structure prediction tools including AlphaFold 3, OpenDDE, Protenix, Mol-1, OpenFold 3, RoseTTAFold3, Chai-1, Boltz, and BioEmu2, with advanced glycan structure support and integrated SugarDrawer functionality.
 Web tool link: https://biofgreat.org/JAAG/  
 Full tutorial PDF: https://www.biofgreat.org/JAAG/Tutorial.pdf  
 Full tutorial PowerPoint with animation: https://biofgreat.org/JAAG/Tutorial.pptx
@@ -36,6 +36,29 @@ document. Explicit AlphaFold 3, OpenDDE, Protenix, OpenFold 3, RoseTTAFold3,
 Chai-1, Boltz, BioEmu2, and Mol-1
 adapters then serialize that document to the selected output format. This keeps
 form collection, common validation, and target conversion separate.
+
+### Binding file dependencies
+
+The DOM-free `shared/input-dependencies.mjs` module prepares a **valid** neutral
+document for a host that can supply file bytes. `captureInputDependencies`
+enumerates path-backed MSA, template, ligand, and custom CCD slots. Its resolver
+receives a logical ID, kind, and slot, never the original path or URL; it must
+explicitly return `{name, mime, bytes}` with `bytes` as a `Uint8Array`. The
+host can inspect the same slot descriptors first with `listInputDependencySlots`.
+IDs derive from the neutral entity key and field; template entries use their
+array index. Reordering template entries can therefore change their IDs. The
+result contains a copied document with safe runner-relative paths, a manifest
+with sizes and SHA-256 digests, and separate bytes. The source document is not
+modified and the module never fetches a path or URL.
+
+Persist the document and manifest separately from the bytes. Before using a
+restored document, `resolveInputDependencies(document, manifest, resolver)`
+requires every byte payload again and verifies its size, digest, slot, and
+relative path. It rejects missing or mismatched files. Each file is limited to
+20 MiB, all files to 100 MiB, and the document to 20 MiB. SHA-256 requires Web
+Crypto, available in secure browser contexts. Target-specific validation and
+serialization remain the caller's responsibility. See the [Input Builder
+integration](integration/input-builder/README.md) for the workbench lifecycle.
 
 #### JAAG target compatibility
 
@@ -446,7 +469,7 @@ boltz predict input.yaml --use_msa_server
 - **Validation Required**: Resolve JAAG validation errors before submitting an input file to any target
 - **Sequence Limits**: Be aware of AlphaFold 3 sequence length limitations (around 5000 tokens)
 - **Database Availability**: External database lookups depend on server availability
-- **Privacy**: Normal editing stays in the browser. Share links contain compressed input data in their URL; compression is not encryption, and the URL may appear in browser history or server logs. When using glycan lookup features, the app makes direct client-side requests to third-party APIs (e.g., GlyGen, GlyTouCan).
+- **Privacy**: Normal editing stays in the browser. Share links contain compressed input data in their URL; compression is not encryption, and the URL may appear in browser history or server logs. The optional Lookup action sends glycan structures to GlyGen and GlyCosmos; the UniProt import action sends the entered accession to UniProt. Both are direct client-side requests to those services.
 
 ## Acknowledgments
 

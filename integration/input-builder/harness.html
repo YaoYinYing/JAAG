@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BioNuTA host harness</title>
+  <style>
+    body { font: 1rem/1.5 system-ui, sans-serif; max-width: 100rem; margin: auto; padding: 1rem; color: #263a36; }
+    button, select, input { font: inherit; padding: .45rem; }
+    .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: end; }
+    label { display: block; } .field { margin: .5rem 0; } #builder { margin-block: 1rem; border: 1px solid #b7c9be; }
+    #status { min-height: 1.5em; } pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <h1>BioNuTA host harness</h1>
+  <p>This local example binds generated files in memory; it does not submit a job or persist private data.</p>
+  <div class="controls">
+    <div><label for="target">Target</label><select id="target"><option value="alphafold3">AlphaFold 3</option><option value="opendde">OpenDDE</option><option value="bioemu2">BioEmu2</option></select></div>
+    <button id="mount" type="button">Open workbench</button>
+    <button id="slots" type="button" disabled>Choose supporting files</button>
+    <button id="generate" type="button" disabled>Bind generated input</button>
+    <button id="clone" type="button" disabled>Clone and reuse</button>
+  </div>
+  <div class="field"><label for="external">Independent input upload</label><input type="file" id="external"><button type="button" id="clear">Clear bound input</button></div>
+  <p id="ownership">Input role: empty</p>
+  <div id="attachments"></div>
+  <p id="status" role="status" aria-live="polite"></p>
+  <div id="builder"></div>
+  <details><summary>Bound generated input</summary><pre id="output"></pre></details>
+  <script type="module" src="./harness.mjs"></script>
+</body>
+</html>

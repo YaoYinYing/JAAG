@@ -1222,6 +1222,8 @@ class EnhancedGlycoCTParser {
      */
     async registerAutomaticUserCCD(newCcdCode, originalCcdCode) {
         try {
+            const existing = window.app?.userCCDs?.[newCcdCode];
+            if (existing && !String(existing.source || '').startsWith('automatic')) return;
             // Check if we already have this userCCD registered
             if (window.app && window.app.glycanUserCCDs && window.app.glycanUserCCDs[newCcdCode]) {
                 return;
