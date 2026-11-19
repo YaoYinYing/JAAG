@@ -12,6 +12,20 @@ async function openBuilder(page, target) {
     return editor;
 }
 
+test('seed remains stable across a clone', async ({ page }) => {
+    const editor = await openBuilder(page, 'alphafold3');
+    await expect(editor.locator('#modelSeedsMultiple')).toHaveValue('1');
+    await editor.locator('#modelSeedsMultiple').evaluate(input => {
+        input.value = '12345';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.locator('#generate').click();
+    await expect(page.locator('#ownership')).toContainText('builder');
+    await page.locator('#clone').click();
+    await expect(page.locator('#status')).toContainText('Clone restored');
+    await expect(editor.locator('#modelSeedsMultiple')).toHaveValue('12345');
+});
+
 for (const target of ['alphafold3', 'opendde', 'bioemu2']) {
     test(`${target}: bind, clone, edit, and preserve an independent upload`, async ({ page }) => {
         const editor = await openBuilder(page, target);

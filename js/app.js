@@ -524,20 +524,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.app = app;
     app.updateOutputTargetUI();
 
-    // Generate and set a random seed as default
-    const modelSeedsInput = document.getElementById('modelSeedsMultiple');
-    if (modelSeedsInput && !modelSeedsInput.value) {
-        const min = 1;
-        const max = 4294967295; // Maximum 32-bit unsigned integer
-        const randomSeed = Math.floor(Math.random() * (max - min + 1)) + min;
-        modelSeedsInput.value = randomSeed;
-
-        // Trigger JSON update to include the default seed
-        if (window.app) {
-            window.app.debounceGenerate();
-        }
-    }
-
     // Add event listener for Advanced Settings collapse toggle
     const advancedFunctionsButton = document.querySelector('[data-bs-target="#advancedFunctionsCollapse"]');
     const advancedFunctionsCollapse = document.getElementById('advancedFunctionsCollapse');

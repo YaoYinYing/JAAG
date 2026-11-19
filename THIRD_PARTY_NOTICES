@@ -26,6 +26,9 @@ Software (bundled or vendored)
   https://github.com/Semantic-Org/Semantic-UI-CSS
   License: vendor/semantic/LICENSE
   The vendored stylesheet removes the external Lato font import; local fallbacks are used.
+- Font Awesome 4.7.0 font, bundled with Semantic UI — SIL Open Font License 1.1
+  Copyright (c) 2016 Dave Gandy
+  License text: vendor/fontawesome/LICENSE.txt (SIL Open Font License section)
 - D3 3.5.17 — BSD 3-Clause License
   https://d3js.org/
   License: vendor/d3/LICENSE
